@@ -21,6 +21,47 @@ export class DynamicSystem {
         this.bodies.push(newBody);
     }
 
+    addEasyBody(x: number, vy: number, mass: number) {
+        const newBody = new DynamicBody({
+            x,
+            y: 0.5,
+            vx: 0,
+            vy,
+            ax: 0,
+            ay: 0,
+            mass,
+        });
+        this.bodies.push(newBody);
+    }
+
+    addRestingBody(x: number, y: number, mass: number) {
+        const newBody = new DynamicBody({
+            x,
+            y,
+            vx: 0,
+            vy: 0,
+            ax: 0,
+            ay: 0,
+            mass,
+        });
+        this.bodies.push(newBody);
+    }
+
+    getCollisionsOfBodyWithIndex(bodyIndex: number): number[] {
+        const result = [];
+        let index = 0;
+        const body1 = this.bodies[bodyIndex];
+        for (const body2 of this.bodies) {
+            if (body1 == body2) { continue; }
+            const dx = body2.x - body1.x;
+            const dy = body2.y - body1.y;
+            const r2 = dx * dx + dy * dy;
+            if (r2 < 0.0001) { result.push(index); }
+            index++;
+        }
+        return result;
+    }
+
     doTimeStep() {
         this.updatePositions();
         this.updateAccelerations();
@@ -32,7 +73,7 @@ export class DynamicSystem {
             body1.ax = 0;
             body1.ay = 0;
             for (const body2 of this.bodies) {
-                if (body1 == body2) { continue; }
+                if (body1 == body2 || body2.mass == 0) { continue; }
                 const dx = body2.x - body1.x;
                 const dy = body2.y - body1.y;
                 const r2 = dx * dx + dy * dy;
@@ -55,10 +96,10 @@ export class DynamicSystem {
         for (const body of this.bodies) {
             body.x += this.dt * body.vx;
             body.y += this.dt * body.vy;
-            if (body.x > 1) { body.x -= 1; }
-            if (body.x < 0) { body.x += 1; }
-            if (body.y > 1) { body.y -= 1; }
-            if (body.y < 0) { body.y += 1; }
+            // if (body.x > 1) { body.x -= 1; }
+            // if (body.x < 0) { body.x += 1; }
+            // if (body.y > 1) { body.y -= 1; }
+            // if (body.y < 0) { body.y += 1; }
         }
     }
 }
