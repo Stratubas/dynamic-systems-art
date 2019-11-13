@@ -62,6 +62,43 @@ export class DynamicSystem {
         return result;
     }
 
+    doTimeStepInline() {
+        // this.updatePositions();
+        let body1: DynamicBody;
+        let body2: DynamicBody;
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            body1 = this.bodies[bodyIndex1];
+            body1.x += this.dt * body1.vx;
+            body1.y += this.dt * body1.vy;
+        }
+        // this.updateAccelerations();
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            body1 = this.bodies[bodyIndex1];
+            body1.ax = 0;
+            body1.ay = 0;
+        }
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            body1 = this.bodies[bodyIndex1];
+            for (let bodyIndex2 = bodyIndex1 + 1; bodyIndex2 < this.bodies.length; bodyIndex2++) {
+                body2 = this.bodies[bodyIndex2];
+                const dx = body2.x - body1.x;
+                const dy = body2.y - body1.y;
+                const r2 = dx * dx + dy * dy;
+                const factor = this.dt / (r2 * Math.sqrt(r2));
+                body1.ax += body2.mass * dx * factor;
+                body1.ay += body2.mass * dy * factor;
+                body2.ax -= body1.mass * dx * factor;
+                body2.ay -= body1.mass * dy * factor;
+            }
+        }
+        // this.updateVelocities();
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            body1 = this.bodies[bodyIndex1];
+            body1.vx += this.dt * body1.ax;
+            body1.vy += this.dt * body1.ay;
+        }
+    }
+
     doTimeStep() {
         this.updatePositions();
         this.updateAccelerations();
@@ -69,31 +106,42 @@ export class DynamicSystem {
     }
 
     private updateAccelerations() {
-        for (const body1 of this.bodies) {
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            const body1 = this.bodies[bodyIndex1];
             body1.ax = 0;
             body1.ay = 0;
-            for (const body2 of this.bodies) {
-                if (body1 == body2 || body2.mass == 0) { continue; }
+        }
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            const body1 = this.bodies[bodyIndex1];
+            for (let bodyIndex2 = bodyIndex1 + 1; bodyIndex2 < this.bodies.length; bodyIndex2++) {
+                const body2 = this.bodies[bodyIndex2];
                 const dx = body2.x - body1.x;
                 const dy = body2.y - body1.y;
                 const r2 = dx * dx + dy * dy;
-                const rInv3 = 1 / (r2 * Math.sqrt(r2));
-                const factor = body2.mass * this.dt * rInv3;
-                body1.ax += dx * factor;
-                body1.ay += dy * factor;
+                const factor = this.dt / (r2 * Math.sqrt(r2));
+                const dxf = dx * factor;
+                const dyf = dy * factor;
+                body1.ax += body2.mass * dxf;
+                body1.ay += body2.mass * dyf;
+                body2.ax -= body1.mass * dxf;
+                body2.ay -= body1.mass * dyf;
             }
         }
     }
 
     private updateVelocities() {
-        for (const body of this.bodies) {
+        let body: DynamicBody;
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            body = this.bodies[bodyIndex1];
             body.vx += this.dt * body.ax;
             body.vy += this.dt * body.ay;
         }
     }
 
     private updatePositions() {
-        for (const body of this.bodies) {
+        let body: DynamicBody;
+        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
+            body = this.bodies[bodyIndex1];
             body.x += this.dt * body.vx;
             body.y += this.dt * body.vy;
             // if (body.x > 1) { body.x -= 1; }

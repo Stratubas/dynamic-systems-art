@@ -37,44 +37,48 @@ export class AppComponent implements OnInit {
     this.doSimulations();
   }
 
-  addWallpaperPixel(x: number, y: number, hitBodyIndex: number) {
+  addWallpaperPixel(x: number, y: number, hitBodyIndex: number, size: number = 1) {
     const color = ['black', 'red', '#4444ff'][hitBodyIndex + 1];
     this.wallpaperContext.fillStyle = color;
-    this.wallpaperContext.fillRect(x, y, 1, 1);
+    this.wallpaperContext.fillRect(x, y, size, size);
   }
 
-  async doSimulations() {
-    for (let xPixel = 0; xPixel < 400; xPixel += 1) {
-      for (let yPixel = 0; yPixel < 400; yPixel += 1) {
-        this.resetSystem();
-        if (yPixel == 0) {
-          await new Promise(res => setTimeout(res));
+  doSimulationsBatch(xPixel: number, step: number) {
+    for (let yPixel = 0; yPixel < 400; yPixel += step) {
+      this.resetSystem();
+      this.system.addRestingBody((xPixel + 0.5) / 400, (yPixel + 0.5) / 400, 0);
+      let hitIndex: number = -1;
+      for (let iteration = 0; iteration < 100000; iteration++) {
+        // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.system.doTimeStep();
+        // this.system.bodies.forEach(body => {
+        //   const x = 400 * body.x - 5 * body.mass;
+        //   const y = 400 * body.y - 5 * body.mass;
+        //   const size = 10 * body.mass;
+        //   this.context.fillRect(x, y, size, size);
+        // });
+        const collisions = this.system.getCollisionsOfBodyWithIndex(2);
+        if (collisions.length > 0) {
+          hitIndex = collisions[0];
+          break;
         }
-        this.system.addRestingBody((xPixel + 0.5) / 400, (yPixel + 0.5) / 400, 0);
-        const hitIndex: number = await new Promise(async resolve => {
-          for (let iteration = 0; iteration < 100000; iteration++) {
-            // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.system.doTimeStep();
-            // this.system.bodies.forEach(body => {
-            //   const x = 400 * body.x - 5 * body.mass;
-            //   const y = 400 * body.y - 5 * body.mass;
-            //   const size = 10 * body.mass;
-            //   this.context.fillRect(x, y, size, size);
-            // });
-            const collisions = this.system.getCollisionsOfBodyWithIndex(2);
-            if (collisions.length > 0) {
-              resolve(collisions[0]);
-            }
-            // console.log('Bodies:');
-            // this.system.bodies.forEach(console.log);
-            // console.log('Drawing...');
-          };
-          resolve(-1);
-        });
-        // console.log(hitIndex);
-        this.addWallpaperPixel(xPixel, yPixel, hitIndex);
-      }
+        // console.log('Bodies:');
+        // this.system.bodies.forEach(console.log);
+        // console.log('Drawing...');
+      };
+      // console.log(hitIndex);
+      this.addWallpaperPixel(xPixel, yPixel, hitIndex, step);
     }
+  }
+
+  doSimulations() {
+    const step = 10;
+    let xPixel = 0;
+    const interval = setInterval(() => {
+      this.doSimulationsBatch(xPixel, step);
+      xPixel += step;
+      if (xPixel >= 400) { clearInterval(interval); }
+    });
   }
 
 }
