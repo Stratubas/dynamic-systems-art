@@ -44,6 +44,7 @@ export class AppComponent implements OnInit {
   }
 
   doSimulationsBatch(xPixel: number, step: number) {
+    const start = performance.now();
     for (let yPixel = 0; yPixel < 400; yPixel += step) {
       this.resetSystem();
       this.system.addRestingBody((xPixel + 0.5) / 400, (yPixel + 0.5) / 400, 0);
@@ -69,16 +70,31 @@ export class AppComponent implements OnInit {
       // console.log(hitIndex);
       this.addWallpaperPixel(xPixel, yPixel, hitIndex, step);
     }
+    console.log('Last batch took:', performance.now() - start);
   }
 
   doSimulations() {
+    const start = performance.now();
     const step = 10;
     let xPixel = 0;
-    const interval = setInterval(() => {
-      this.doSimulationsBatch(xPixel, step);
-      xPixel += step;
-      if (xPixel >= 400) { clearInterval(interval); }
-    });
+    const loop = () => {
+      setTimeout(() => {
+        this.doSimulationsBatch(xPixel, step);
+        xPixel += step;
+        if (xPixel < 400) { return loop(); }
+        console.log('All simulations took:', performance.now() - start);
+      })
+    }
+    loop();
+    // // This is the equivalent using setInterval
+    // const interval = setInterval(() => {
+    //   this.doSimulationsBatch(xPixel, step);
+    //   xPixel += step;
+    //   if (xPixel >= 400) {
+    //     clearInterval(interval);
+    //     console.log('All simulations took:', performance.now() - start);
+    //   }
+    // });
   }
 
 }
