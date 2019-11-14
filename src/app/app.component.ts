@@ -1,6 +1,8 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
+const PIXEL_SIZE = 10;
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -37,9 +39,11 @@ export class AppComponent implements OnInit {
     this.doSimulations();
   }
 
-  addWallpaperPixel(x: number, y: number, hitBodyIndex: number, size: number = 1) {
-    const color = ['black', 'red', '#4444ff'][hitBodyIndex + 1];
-    this.wallpaperContext.fillStyle = color;
+  addWallpaperPixel(x: number, y: number, hitBodyIndex: number, iteration: number, size: number = 1) {
+    const hue = ['0', '0', '240'][hitBodyIndex + 1];
+    const light = Math.sqrt(iteration / 500);
+    const style = 'hsl(' + hue + ',100%,' + Math.round(50 * Math.max(1 - light, 0)) + '%)';
+    this.wallpaperContext.fillStyle = style;
     this.wallpaperContext.fillRect(x, y, size, size);
   }
 
@@ -49,7 +53,8 @@ export class AppComponent implements OnInit {
       this.resetSystem();
       this.system.addRestingBody((xPixel + 0.5) / 400, (yPixel + 0.5) / 400, 0);
       let hitIndex: number = -1;
-      for (let iteration = 0; iteration < 100000; iteration++) {
+      let iteration: number;
+      for (iteration = 0; iteration < 100000; iteration++) {
         // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.system.doTimeStep();
         // this.system.bodies.forEach(body => {
@@ -68,14 +73,14 @@ export class AppComponent implements OnInit {
         // console.log('Drawing...');
       };
       // console.log(hitIndex);
-      this.addWallpaperPixel(xPixel, yPixel, hitIndex, step);
+      this.addWallpaperPixel(xPixel, yPixel, hitIndex, iteration, step);
     }
     console.log('Last batch took:', performance.now() - start);
   }
 
   doSimulations() {
     const start = performance.now();
-    const step = 10;
+    const step = PIXEL_SIZE;
     let xPixel = 0;
     const loop = () => {
       setTimeout(() => {
