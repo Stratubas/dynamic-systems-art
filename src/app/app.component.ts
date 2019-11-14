@@ -1,7 +1,7 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 10;
+const PIXEL_SIZE = 8;
 const GIVE_UP_ITERATIONS = 1000; // default: 100000
 const SHOW_SIMULATION = true;
 
@@ -20,15 +20,19 @@ export class AppComponent implements OnInit {
   public system: DynamicSystem;
   constructor() {
     this.system = new DynamicSystem();
-    // for (let i = 0; i < 3; i++) {
-    //   this.system.addRandomBody();
-    // }
-    console.log('Bodies:');
-    this.system.bodies.forEach(console.log);
+  }
+
+  printBodies() {
+    console.log('All bodies:');
+    this.system.allBodies.forEach(body => console.log(body));
+    console.log('Small bodies:');
+    this.system.smallBodies.forEach(body => console.log(body));
+    console.log('Massive bodies:');
+    this.system.massiveBodies.forEach(body => console.log(body));
   }
 
   resetSystem() {
-    this.system.bodies = [];
+    this.system.reset();
     this.system.addEasyBody(0.3, -0.3, 10);
     this.system.addEasyBody(0.7, 0.3, 10);
   }
@@ -37,7 +41,6 @@ export class AppComponent implements OnInit {
     this.canvas = this.myCanvas.nativeElement;
     this.context = this.canvas.getContext('2d');
     this.wallpaperContext = this.wallpaperCanvasRef.nativeElement.getContext('2d');
-    console.log(this.context);
     this.doSimulations();
   }
 
@@ -51,30 +54,43 @@ export class AppComponent implements OnInit {
 
   async doSimulationsBatch(xPixel: number, step: number) {
     const start = performance.now();
+    this.resetSystem();
     for (let yPixel = 0; yPixel < 400; yPixel += step) {
-      this.resetSystem();
       this.system.addRestingBody((xPixel + 0.5) / 400, (yPixel + 0.5) / 400, 0);
-      let hitIndex: number = -1;
-      let iteration: number;
-      for (iteration = 0; iteration < GIVE_UP_ITERATIONS; iteration++) {
-        this.system.doTimeStep();
-        const collisions = this.system.getCollisionsOfBodyWithIndex(2);
+    }
+    // this.printBodies();
+    const hitIndexes: { [bodyIndex: number]: number } = {};
+    const hitIterations: { [bodyIndex: number]: number } = {};
+    for (let iteration = 1; iteration <= GIVE_UP_ITERATIONS; iteration++) {
+      this.system.doTimeStep();
+      for (let bodyIndex = 0; bodyIndex * step < 400; bodyIndex++) {
+        const collisions = this.system.getCollisionsOfSmallBodyWithIndex(bodyIndex);
         if (collisions.length > 0) {
-          hitIndex = collisions[0];
-          break;
+          hitIndexes[bodyIndex] = collisions[0];
+          hitIterations[bodyIndex] = iteration;
+          this.system.smallBodies[bodyIndex].x = 10;
+          this.system.smallBodies[bodyIndex].vx = 10;
+          if (Object.keys(hitIndexes).length == this.system.smallBodies.length) {
+            break;
+          }
         }
-        if (SHOW_SIMULATION && iteration % 4 == 0) {
-          this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-          this.system.bodies.forEach(body => {
-            const size = body.mass == 0 ? 4 : 10;//10 * body.mass;
-            const x = 400 * body.x - size / 2;
-            const y = 400 * body.y - size / 2;
-            this.context.fillRect(x, y, size, size);
-          });
-          await new Promise(res => setTimeout(res, 5));
-        }
-      };
-      // console.log(hitIndex);
+      }
+      if (SHOW_SIMULATION && iteration % 4 == 0) {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.system.allBodies.forEach(body => {
+          const size = body.mass == 0 ? 4 : 10;//10 * body.mass;
+          const x = 400 * body.x - size / 2;
+          const y = 400 * body.y - size / 2;
+          this.context.fillRect(x, y, size, size);
+        });
+        await new Promise(res => setTimeout(res, 5));
+      }
+    };
+    // console.log(hitIterations);
+    for (let bodyIndex = 0; bodyIndex * step < 400; bodyIndex++) {
+      const yPixel = bodyIndex * step;
+      const hitIndex = hitIndexes[bodyIndex] == undefined ? -1 : hitIndexes[bodyIndex];
+      const iteration = hitIterations[bodyIndex] || GIVE_UP_ITERATIONS;
       this.addWallpaperPixel(xPixel, yPixel, hitIndex, iteration, step);
     }
     console.log('Last batch took:', performance.now() - start);
