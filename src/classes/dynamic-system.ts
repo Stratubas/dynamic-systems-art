@@ -64,6 +64,7 @@ export class DynamicSystem {
         const result = [];
         let index = 0;
         const body1 = this.smallBodies[bodyIndex];
+        // if (body1.dead) { return result; }
         for (const body2 of this.massiveBodies) {
             // if (body1 == body2) { continue; }
             const dx = body2.x - body1.x;
@@ -121,6 +122,7 @@ export class DynamicSystem {
     private updateAccelerations() {
         for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
             const body1 = this.allBodies[bodyIndex1];
+            // if (body1.dead) { continue; }
             body1.ax = 0;
             body1.ay = 0;
         }
@@ -131,6 +133,7 @@ export class DynamicSystem {
                 const dx = body2.x - body1.x;
                 const dy = body2.y - body1.y;
                 const r2 = dx * dx + dy * dy;
+                if (r2 > 100) { continue; }
                 const factor = this.dt / (r2 * Math.sqrt(r2));
                 const dxf = dx * factor;
                 const dyf = dy * factor;
@@ -141,6 +144,7 @@ export class DynamicSystem {
             }
             for (let bodyIndex2 = 0; bodyIndex2 < this.smallBodies.length; bodyIndex2++) {
                 const body2 = this.smallBodies[bodyIndex2];
+                // if (body2.dead) { continue; }
                 const dx = body2.x - body1.x;
                 const dy = body2.y - body1.y;
                 const r2 = dx * dx + dy * dy;
@@ -157,6 +161,7 @@ export class DynamicSystem {
         let body: DynamicBody;
         for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
             body = this.allBodies[bodyIndex1];
+            // if (body.dead) { continue; }
             body.vx += this.dt * body.ax;
             body.vy += this.dt * body.ay;
         }
@@ -166,6 +171,7 @@ export class DynamicSystem {
         let body: DynamicBody;
         for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
             body = this.allBodies[bodyIndex1];
+            // if (body.dead) { continue; }
             body.x += this.dt * body.vx;
             body.y += this.dt * body.vy;
             // if (body.x > 1) { body.x -= 1; }
