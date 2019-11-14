@@ -56,7 +56,7 @@ export class DynamicSystem {
             const dx = body2.x - body1.x;
             const dy = body2.y - body1.y;
             const r2 = dx * dx + dy * dy;
-            if (r2 < 0.0001) { result.push(index); }
+            if (r2 < 0.0005) { result.push(index); }
             index++;
         }
         return result;
