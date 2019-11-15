@@ -1,15 +1,15 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 4;
-const GIVE_UP_ITERATIONS = 1000000; // default: 100000
+const PIXEL_SIZE = 1;
+const GIVE_UP_ITERATIONS = 100000; // default: 100000
 const ANIMATION_DELAY = 10;
-const SHOW_SIMULATION = true;
-const WIDTH = 400;
-const HEIGHT = 400;
-const SUN_MASS = 5;
-const ANIMATION_ITERATIONS_STEP = 10;
-const BATCH_COLUMN_SIZE = 200;
+const SHOW_SIMULATION = false;
+const WIDTH = 1920;
+const HEIGHT = 1080;
+const SUN_MASS = 1;
+const ANIMATION_ITERATIONS_STEP = 100;
+const BATCH_COLUMN_SIZE = 5;
 // const ANIMATION_SCALE = 1 / 4;
 
 @Component({
@@ -46,8 +46,8 @@ export class AppComponent implements OnInit {
 
   resetSystem() {
     this.system.reset();
-    this.system.addEasyBody(0.3, -0.1, SUN_MASS);
-    this.system.addEasyBody(0.7, 0.1, SUN_MASS);
+    this.system.addEasyBody(0.5 + 0.25 * 0.2, -0.025, 2 * SUN_MASS);
+    this.system.addEasyBody(0.5 - 0.2, 0.1, 0.5 * SUN_MASS);
   }
 
   ngOnInit() {
@@ -63,7 +63,7 @@ export class AppComponent implements OnInit {
     const timeToFall = iteration * this.system.dt;
     // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
     // const zeroToOne = Math.min(1, timeToFall / maxTime);
-    const light = Math.pow(10, -timeToFall / 10);
+    const light = Math.pow(10, -timeToFall / 20);
     // const darkness = Math.pow(zeroToOne, 1 / 2);
     const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)';
     this.wallpaperContext.fillStyle = style;
@@ -79,7 +79,11 @@ export class AppComponent implements OnInit {
     const paddingY = Math.max(0, HEIGHT - minDimension) / 2;
     for (const xPixel of xPixels) {
       for (let yPixel = 0; yPixel < HEIGHT; yPixel += step) {
-        this.system.addRestingBody((-paddingX + xPixel + 0.5) / minDimension, (-paddingY + yPixel + 0.5) / minDimension, 0);
+        this.system.addRestingBody(
+          (-paddingX + xPixel + 0.5) / minDimension,
+          (-paddingY + yPixel + 0.5) / minDimension,
+          0
+        );
         bodyPixels.push({ xPixel, yPixel });
       }
     }
