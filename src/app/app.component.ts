@@ -1,11 +1,16 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 8;
-const GIVE_UP_ITERATIONS = 1000; // default: 100000
-const SHOW_SIMULATION = false;
-const WIDTH = 1920;
-const HEIGHT = 1080;
+const PIXEL_SIZE = 4;
+const GIVE_UP_ITERATIONS = 10000; // default: 100000
+const ANIMATION_DELAY = 10;
+const SHOW_SIMULATION = true;
+const WIDTH = 400;
+const HEIGHT = 400;
+const SUN_MASS = 5;
+const ANIMATION_ITERATIONS_STEP = 10;
+const BATCH_COLUMN_SIZE = 200;
+// const ANIMATION_SCALE = 1 / 4;
 
 @Component({
   selector: 'app-root',
@@ -16,6 +21,8 @@ export class AppComponent implements OnInit {
 
   canvasWidth = WIDTH;
   canvasHeight = HEIGHT;
+  // animationWidth = WIDTH * ANIMATION_SCALE;
+  // animationHeight = HEIGHT * ANIMATION_SCALE;
 
   @ViewChild('myCanvas', { static: true }) public myCanvas: ElementRef;
   @ViewChild('wallpaperCanvas', { static: true }) public wallpaperCanvasRef: ElementRef;
@@ -39,8 +46,8 @@ export class AppComponent implements OnInit {
 
   resetSystem() {
     this.system.reset();
-    this.system.addEasyBody(0.3, -0.3, 10);
-    this.system.addEasyBody(0.7, 0.3, 10);
+    this.system.addEasyBody(0.3, -0.1, SUN_MASS);
+    this.system.addEasyBody(0.7, 0.1, SUN_MASS);
   }
 
   ngOnInit() {
@@ -52,8 +59,11 @@ export class AppComponent implements OnInit {
 
   addWallpaperPixel(x: number, y: number, hitBodyIndex: number, iteration: number, size: number = 1) {
     const hue = ['0', '0', '240'][hitBodyIndex + 1];
-    const light = iteration == GIVE_UP_ITERATIONS ? 1 : (Math.log(iteration) / Math.log(GIVE_UP_ITERATIONS));
-    const style = 'hsl(' + hue + ',100%,' + Math.round(50 * Math.max(1 - light, 0)) + '%)';
+    const timeToFall = iteration * this.system.dt;
+    const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
+    const zeroToOne = Math.min(1, timeToFall / maxTime);
+    const darkness = Math.pow(zeroToOne, 1 / 2);
+    const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(1 - darkness, 0) + '%)';
     this.wallpaperContext.fillStyle = style;
     this.wallpaperContext.fillRect(x, y, size, size);
   }
@@ -89,15 +99,15 @@ export class AppComponent implements OnInit {
           }
         }
       }
-      if (SHOW_SIMULATION && iteration % 4 == 0) {
+      if (SHOW_SIMULATION && iteration % ANIMATION_ITERATIONS_STEP == 0) {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.system.allBodies.forEach(body => {
           const size = body.mass == 0 ? 4 : 10;//10 * body.mass;
-          const x = WIDTH * body.x - size / 2;
-          const y = HEIGHT * body.y - size / 2;
+          const x = 400 * body.x - size / 2;
+          const y = 400 * body.y - size / 2;
           this.context.fillRect(x, y, size, size);
         });
-        await new Promise(res => setTimeout(res, 5));
+        await new Promise(res => setTimeout(res, ANIMATION_DELAY));
       }
     };
     // console.log(hitIterations);
@@ -115,7 +125,7 @@ export class AppComponent implements OnInit {
     const start = performance.now();
     const step = PIXEL_SIZE;
     let xPixel = 0;
-    const batchColumnsSize = 10;
+    const batchColumnsSize = BATCH_COLUMN_SIZE;
     const loop = async () => new Promise(resolve => {
       setTimeout(async () => {
         const xPixels = [];

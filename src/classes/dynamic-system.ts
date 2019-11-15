@@ -1,7 +1,7 @@
 import { DynamicBody } from './dynamic-body';
 
 export class DynamicSystem {
-    private dt = 0.01;
+    public dt = 0.002;
     public massiveBodies: DynamicBody[] = [];
     public smallBodies: DynamicBody[] = [];
     public allBodies: DynamicBody[] = [];
@@ -133,7 +133,6 @@ export class DynamicSystem {
                 const dx = body2.x - body1.x;
                 const dy = body2.y - body1.y;
                 const r2 = dx * dx + dy * dy;
-                if (r2 > 100) { continue; }
                 const factor = this.dt / (r2 * Math.sqrt(r2));
                 const dxf = dx * factor;
                 const dyf = dy * factor;
@@ -148,6 +147,7 @@ export class DynamicSystem {
                 const dx = body2.x - body1.x;
                 const dy = body2.y - body1.y;
                 const r2 = dx * dx + dy * dy;
+                // if (r2 > 100) { continue; }
                 const factor = this.dt / (r2 * Math.sqrt(r2));
                 const dxf = dx * factor;
                 const dyf = dy * factor;
