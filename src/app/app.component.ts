@@ -1,10 +1,10 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 4;
-const GIVE_UP_ITERATIONS = 1000000; // default: 100000
+const PIXEL_SIZE = 1;
+const GIVE_UP_ITERATIONS = 100; // default: 100000
 const ANIMATION_DELAY = 10;
-const SHOW_SIMULATION = true;
+const SHOW_SIMULATION = false;
 const WIDTH = 400;
 const HEIGHT = 400;
 const SUN_MASS = 5;
@@ -63,7 +63,7 @@ export class AppComponent implements OnInit {
     const timeToFall = iteration * this.system.dt;
     // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
     // const zeroToOne = Math.min(1, timeToFall / maxTime);
-    const light = Math.pow(10, -timeToFall / 10);
+    const light = iteration == GIVE_UP_ITERATIONS ? 0 : Math.pow(10, -timeToFall / 10);
     // const darkness = Math.pow(zeroToOne, 1 / 2);
     const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)';
     this.wallpaperContext.fillStyle = style;
@@ -83,6 +83,7 @@ export class AppComponent implements OnInit {
         bodyPixels.push({ xPixel, yPixel });
       }
     }
+    this.system.initGpu();
     // this.printBodies();
     const hitIndexes: { [bodyIndex: number]: number } = {};
     const hitIterations: { [bodyIndex: number]: number } = {};

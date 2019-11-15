@@ -1,13 +1,20 @@
 import { DynamicBody } from './dynamic-body';
+import * as GPU from 'src/libraries/gpu.js';
+
+const gpu = new GPU();
+const DT = 0.002;
 
 export class DynamicSystem {
-    public dt = 0.002;
+    public dt = DT;
     public massiveBodies: DynamicBody[] = [];
     public smallBodies: DynamicBody[] = [];
     public allBodies: DynamicBody[] = [];
 
+    private doTimeStepInGpu: any;
+
     constructor() {
         //public bodies: DynamicBody[] = []
+        // console.log(gpu);
     }
 
     reset() {
@@ -19,6 +26,13 @@ export class DynamicSystem {
     private addBody(newBody: DynamicBody) {
         (newBody.mass ? this.massiveBodies : this.smallBodies).push(newBody);
         this.allBodies.push(newBody);
+    }
+
+    initGpu() {
+        const allBodies = this.allBodies;
+        this.doTimeStepInGpu = gpu.createKernel(function (xyVxVy: number[], ratesOfChange: number[]) {
+            return values[this.thread.x] + ratesOfChange[this.thread.x] * 0.002;
+        }).setOutput([allBodies.length * 2]);
     }
 
     addRandomBody() {
@@ -168,16 +182,26 @@ export class DynamicSystem {
     }
 
     private updatePositions() {
+        const allXY = Array(this.allBodies.length * 2);
+        const allVxVy = Array(this.allBodies.length * 2);
+        for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
+            allXY[bodyIndex1] = this.allBodies[bodyIndex1].x;
+            allXY[bodyIndex1 + this.allBodies.length] = this.allBodies[bodyIndex1].y;
+            allVxVy[bodyIndex1] = this.allBodies[bodyIndex1].vx;
+            allVxVy[bodyIndex1 + this.allBodies.length] = this.allBodies[bodyIndex1].vy;
+        }
+        const newXY = this.doTimeStepInGpu(allXY, allVxVy) as number[];
+        // const newY = this.incrementInGpu(allY, allVy, this.dt) as number[];
+        // console.log('GPU new X:', newPositions);
         let body: DynamicBody;
         for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
             body = this.allBodies[bodyIndex1];
             // if (body.dead) { continue; }
-            body.x += this.dt * body.vx;
-            body.y += this.dt * body.vy;
-            // if (body.x > 1) { body.x -= 1; }
-            // if (body.x < 0) { body.x += 1; }
-            // if (body.y > 1) { body.y -= 1; }
-            // if (body.y < 0) { body.y += 1; }
+            body.x = newXY[bodyIndex1];
+            body.y = newXY[bodyIndex1 + this.allBodies.length];
+            // body.x += this.dt * body.vx;
+            // body.y += this.dt * body.vy;
         }
+        // console.log('CPU new X:', this.allBodies.map(body => body.x));
     }
 }
