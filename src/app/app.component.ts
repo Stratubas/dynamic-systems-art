@@ -2,7 +2,7 @@ import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
 const PIXEL_SIZE = 4;
-const GIVE_UP_ITERATIONS = 10000; // default: 100000
+const GIVE_UP_ITERATIONS = 1000000; // default: 100000
 const ANIMATION_DELAY = 10;
 const SHOW_SIMULATION = true;
 const WIDTH = 400;
@@ -54,16 +54,18 @@ export class AppComponent implements OnInit {
     this.canvas = this.myCanvas.nativeElement;
     this.context = this.canvas.getContext('2d');
     this.wallpaperContext = this.wallpaperCanvasRef.nativeElement.getContext('2d');
+    setTimeout(() => this.wallpaperContext.fillRect(0, 0, WIDTH, HEIGHT));
     this.doSimulations();
   }
 
   addWallpaperPixel(x: number, y: number, hitBodyIndex: number, iteration: number, size: number = 1) {
     const hue = ['0', '0', '240'][hitBodyIndex + 1];
     const timeToFall = iteration * this.system.dt;
-    const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
-    const zeroToOne = Math.min(1, timeToFall / maxTime);
-    const darkness = Math.pow(zeroToOne, 1 / 2);
-    const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(1 - darkness, 0) + '%)';
+    // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
+    // const zeroToOne = Math.min(1, timeToFall / maxTime);
+    const light = Math.pow(10, -timeToFall / 10);
+    // const darkness = Math.pow(zeroToOne, 1 / 2);
+    const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)';
     this.wallpaperContext.fillStyle = style;
     this.wallpaperContext.fillRect(x, y, size, size);
   }
@@ -93,6 +95,10 @@ export class AppComponent implements OnInit {
           hitIterations[bodyIndex] = iteration;
           this.system.smallBodies[bodyIndex].x = 10;
           this.system.smallBodies[bodyIndex].vx = 10;
+          if (SHOW_SIMULATION) {
+            const pixels = bodyPixels[bodyIndex];
+            this.addWallpaperPixel(pixels.xPixel, pixels.yPixel, collisions[0], iteration, step);
+          }
           // this.system.smallBodies[bodyIndex].dead = true;
           if (Object.keys(hitIndexes).length == this.system.smallBodies.length) {
             break;
