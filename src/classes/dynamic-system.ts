@@ -61,6 +61,7 @@ export class DynamicSystem {
     }
 
     getCollisionsOfSmallBodyWithIndex(bodyIndex: number): number[] {
+        const collisionRadiusSquared = 0.0001;
         const result = [];
         let index = 0;
         const body1 = this.smallBodies[bodyIndex];
@@ -70,7 +71,7 @@ export class DynamicSystem {
             const dx = body2.x - body1.x;
             const dy = body2.y - body1.y;
             const r2 = dx * dx + dy * dy;
-            if (r2 < 0.0005) { result.push(index); }
+            if (r2 < collisionRadiusSquared) { result.push(index); }
             index++;
         }
         return result;
@@ -148,14 +149,17 @@ export class DynamicSystem {
                 const dy = body2.y - body1.y;
                 const r2 = dx * dx + dy * dy;
                 const radius = Math.sqrt(r2);
-                const springForce = -0.1 + radius;
-                const magneticForce = 0.0001 / r2;
+                const springLength = 0.45;
+                const springStiffness = 0.5;
+                const springForce = springStiffness * (-0.5 * springLength + radius);
+                const magneticForce = 0; // 0.0001 / r2;
                 const factor = this.dt * (springForce + magneticForce) / radius;
                 // if (r2 > 100) { continue; }
                 // const factor = this.dt / (r2 * Math.sqrt(r2));
                 const dxf = dx * factor;
                 const dyf = dy * factor;
-                const gravityPull = -10 * this.dt;
+                const gravityAcceleration = 10;
+                const gravityPull = -gravityAcceleration* this.dt;
                 body2.ax -= body1.mass * dxf;
                 body2.ay -= body1.mass * dyf + gravityPull;
             }

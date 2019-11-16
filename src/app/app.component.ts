@@ -1,15 +1,18 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 1;
+const PIXEL_SIZE = 4;
 const GIVE_UP_ITERATIONS = 100000; // default: 100000
-const ANIMATION_DELAY = 10;
-const SHOW_SIMULATION = false;
-const WIDTH = 1080;
-const HEIGHT = 1920;
+const ANIMATION_DELAY = 0;
+const SHOW_SIMULATION = true;
+const LOOP_FOREVER = true;
+const WIDTH = 400;
+const HEIGHT = 400;
+const SYSTEM_X_RANGE = [0.48, 0.52];
+const SYSTEM_Y_RANGE = [0.47, 0.51];
 const SUN_MASS = 200;
-const ANIMATION_ITERATIONS_STEP = 100;
-const BATCH_COLUMN_SIZE = 1;
+const ANIMATION_ITERATIONS_STEP = 1000;
+const BATCH_COLUMN_SIZE = 400;
 // const ANIMATION_SCALE = 1 / 4;
 
 @Component({
@@ -64,7 +67,9 @@ export class AppComponent implements OnInit {
     const timeToFall = iteration * this.system.dt;
     // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
     // const zeroToOne = Math.min(1, timeToFall / maxTime);
-    const light = iteration == GIVE_UP_ITERATIONS ? 0 : Math.pow(10, -timeToFall / 100);
+    let light = Math.pow(10, -timeToFall / 5000);
+    if (iteration == GIVE_UP_ITERATIONS) { light = 0; }
+    // if (LOOP_FOREVER) { light = 1; }
     // const darkness = Math.pow(zeroToOne, 1 / 2);
     const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)';
     this.wallpaperContext.fillStyle = style;
@@ -80,18 +85,19 @@ export class AppComponent implements OnInit {
     const paddingY = Math.max(0, HEIGHT - minDimension) / 2;
     for (const xPixel of xPixels) {
       for (let yPixel = 0; yPixel < HEIGHT; yPixel += step) {
-        this.system.addRestingBody(
-          (-paddingX + xPixel + 0.5) / minDimension,
-          (-paddingY + yPixel + 0.5) / minDimension,
-          0
-        );
+        const scaleX = SYSTEM_X_RANGE[1] - SYSTEM_X_RANGE[0];
+        const scaleY = SYSTEM_Y_RANGE[1] - SYSTEM_Y_RANGE[0];
+        const xCoord = SYSTEM_X_RANGE[0] + scaleX * (-paddingX + xPixel + PIXEL_SIZE / 2) / minDimension;
+        const yCoord = SYSTEM_Y_RANGE[0] + scaleY * (-paddingY + yPixel + PIXEL_SIZE / 2) / minDimension;
+        this.system.addRestingBody(xCoord, yCoord, 0);
+        // console.log(xCoord, yCoord);
         bodyPixels.push({ xPixel, yPixel });
       }
     }
     // this.printBodies();
     const hitIndexes: { [bodyIndex: number]: number } = {};
     const hitIterations: { [bodyIndex: number]: number } = {};
-    for (let iteration = 1; iteration <= GIVE_UP_ITERATIONS; iteration++) {
+    for (let iteration = 1; iteration <= GIVE_UP_ITERATIONS || LOOP_FOREVER; iteration++) {
       this.system.doTimeStep();
       for (let bodyIndex = 0; bodyIndex < bodyPixels.length; bodyIndex++) {
         const collisions = this.system.getCollisionsOfSmallBodyWithIndex(bodyIndex);
