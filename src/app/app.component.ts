@@ -1,15 +1,15 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 4;
+const PIXEL_SIZE = 8;
 const GIVE_UP_ITERATIONS = 100000; // default: 100000
 const ANIMATION_DELAY = 0;
 const SHOW_SIMULATION = true;
 const LOOP_FOREVER = true;
-const WIDTH = 400;
+const WIDTH = 800;
 const HEIGHT = 400;
-const SYSTEM_X_RANGE = [0.48, 0.52];
-const SYSTEM_Y_RANGE = [0.47, 0.51];
+const SYSTEM_X_RANGE = [0.4, 0.6];
+const SYSTEM_Y_RANGE = [0.325, 0.525];
 const SUN_MASS = 200;
 const ANIMATION_ITERATIONS_STEP = 1000;
 const BATCH_COLUMN_SIZE = 400;
@@ -24,6 +24,7 @@ export class AppComponent implements OnInit {
 
   canvasWidth = WIDTH;
   canvasHeight = HEIGHT;
+  animationWidth = 400; // Math.round(400 * WIDTH / HEIGHT);
   // animationWidth = WIDTH * ANIMATION_SCALE;
   // animationHeight = HEIGHT * ANIMATION_SCALE;
 
@@ -67,11 +68,12 @@ export class AppComponent implements OnInit {
     const timeToFall = iteration * this.system.dt;
     // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
     // const zeroToOne = Math.min(1, timeToFall / maxTime);
-    let light = Math.pow(10, -timeToFall / 5000);
-    if (iteration == GIVE_UP_ITERATIONS) { light = 0; }
+    let light = 1 / (1 + timeToFall / 100); // Math.pow(10, -timeToFall / 1000);
+    if (iteration == GIVE_UP_ITERATIONS && !LOOP_FOREVER) { light = 0; }
     // if (LOOP_FOREVER) { light = 1; }
     // const darkness = Math.pow(zeroToOne, 1 / 2);
     const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)';
+    // const style = 'hsl(' + (2 * timeToFall % 360) + ',100%,' + 50 + '%)';
     this.wallpaperContext.fillStyle = style;
     this.wallpaperContext.fillRect(x, y, size, size);
   }
