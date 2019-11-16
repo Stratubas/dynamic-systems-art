@@ -5,11 +5,11 @@ const PIXEL_SIZE = 1;
 const GIVE_UP_ITERATIONS = 100000; // default: 100000
 const ANIMATION_DELAY = 10;
 const SHOW_SIMULATION = false;
-const WIDTH = 1920;
-const HEIGHT = 1080;
-const SUN_MASS = 1;
+const WIDTH = 1080;
+const HEIGHT = 1920;
+const SUN_MASS = 200;
 const ANIMATION_ITERATIONS_STEP = 100;
-const BATCH_COLUMN_SIZE = 5;
+const BATCH_COLUMN_SIZE = 1;
 // const ANIMATION_SCALE = 1 / 4;
 
 @Component({
@@ -46,8 +46,9 @@ export class AppComponent implements OnInit {
 
   resetSystem() {
     this.system.reset();
-    this.system.addEasyBody(0.5 + 0.25 * 0.2, -0.025, 2 * SUN_MASS);
-    this.system.addEasyBody(0.5 - 0.2, 0.1, 0.5 * SUN_MASS);
+    this.system.addEasyBody(0.5, 0, SUN_MASS);
+    // this.system.addEasyBody(0.5 + 0.25 * 0.2, -0.025, 2 * SUN_MASS);
+    // this.system.addEasyBody(0.5 - 0.2, 0.1, 0.5 * SUN_MASS);
   }
 
   ngOnInit() {
@@ -63,14 +64,14 @@ export class AppComponent implements OnInit {
     const timeToFall = iteration * this.system.dt;
     // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
     // const zeroToOne = Math.min(1, timeToFall / maxTime);
-    const light = Math.pow(10, -timeToFall / 20);
+    const light = iteration == GIVE_UP_ITERATIONS ? 0 : Math.pow(10, -timeToFall / 100);
     // const darkness = Math.pow(zeroToOne, 1 / 2);
     const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)';
     this.wallpaperContext.fillStyle = style;
     this.wallpaperContext.fillRect(x, y, size, size);
   }
 
-  async doSimulationsBatch(xPixels: number[], step: number) {
+  async doSimulationsBatch(xPixels: number[], step: number, results: any[]) {
     const start = performance.now();
     this.resetSystem();
     const bodyPixels = [];
@@ -103,7 +104,7 @@ export class AppComponent implements OnInit {
             const pixels = bodyPixels[bodyIndex];
             this.addWallpaperPixel(pixels.xPixel, pixels.yPixel, collisions[0], iteration, step);
           }
-          // this.system.smallBodies[bodyIndex].dead = true;
+          this.system.smallBodies[bodyIndex].dead = true;
           if (Object.keys(hitIndexes).length == this.system.smallBodies.length) {
             break;
           }
@@ -126,12 +127,14 @@ export class AppComponent implements OnInit {
       const yPixel = bodyPixels[bodyIndex].yPixel;
       const hitIndex = hitIndexes[bodyIndex] == undefined ? -1 : hitIndexes[bodyIndex];
       const iteration = hitIterations[bodyIndex] || GIVE_UP_ITERATIONS;
+      // results.push({xPixel, yPixel, hitIndex, iteration, step});
       this.addWallpaperPixel(xPixel, yPixel, hitIndex, iteration, step);
     }
     console.log('Last batch took:', performance.now() - start);
   }
 
   async doSimulations() {
+    const results = [];
     const start = performance.now();
     const step = PIXEL_SIZE;
     let xPixel = 0;
@@ -144,10 +147,13 @@ export class AppComponent implements OnInit {
           if (nextXPixel >= WIDTH) { break; }
           xPixels.push(nextXPixel);
         }
-        await this.doSimulationsBatch(xPixels, step);
+        await this.doSimulationsBatch(xPixels, step, results);
         xPixel = xPixels[xPixels.length - 1] + step;
         if (xPixel < WIDTH) { return await loop(); }
         console.log('All simulations took:', performance.now() - start);
+        // const resultsString = JSON.stringify(results);
+        // localStorage.setItem('springResults', resultsString);
+        // console.log(localStorage.getItem('springResults'));
         resolve();
       });
     });
