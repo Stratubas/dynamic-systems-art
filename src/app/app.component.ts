@@ -1,14 +1,14 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 4;
-const TOTAL_TIME_UNITS = 200;
-const TIME_UNITS_PER_FRAME = 10;
+const PIXEL_SIZE = 1;
+const TOTAL_TIME_UNITS = 2000;
+const TIME_UNITS_PER_FRAME = 100;
 const ANIMATION_DELAY = 10;
-const SHOW_SIMULATION = true;
+const SHOW_SIMULATION = false;
 const LOOP_FOREVER = false;
-const WIDTH = 192;
-const HEIGHT = 108;
+const WIDTH = 1920 / 20;
+const HEIGHT = 1080 / 20;
 // const SYSTEM_X_RANGE = [0.4, 0.6];
 // const SYSTEM_Y_RANGE = [0.325, 0.525];
 const SYSTEM_X_CENTER = 0.5;
@@ -97,8 +97,12 @@ export class AppComponent implements OnInit {
     const hitIndexes: { [bodyIndex: number]: number } = {};
     const hitTimes: { [bodyIndex: number]: number } = {};
     const totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
+    let perfTime = performance.now();
+    const frameTimes = [];
     for (let frameIndex = 0; frameIndex < totalFrames || LOOP_FOREVER; frameIndex++) {
       const collisions = await this.system.doTimeSteps(TIME_UNITS_PER_FRAME);
+      const ms = Math.round(-perfTime + (perfTime = performance.now()));
+      frameTimes.push(ms);
       for (const collision of collisions) {
         const batchBodyIndex = collision.bodyIndex;
         hitIndexes[batchBodyIndex] = collision.collidedTargetIndexes[0];
@@ -124,6 +128,7 @@ export class AppComponent implements OnInit {
         break;
       }
     };
+    // console.log('Done', frameTimes.length, 'frames with times:', frameTimes);
     for (let simulationInfoIndex = 0; simulationInfoIndex < simulationsInfo.length; simulationInfoIndex++) {
       const simulationInfo = simulationsInfo[simulationInfoIndex];
       const xPixel = simulationInfo.xPixelStart;
@@ -137,6 +142,7 @@ export class AppComponent implements OnInit {
     }
   }
 
+  // async doSimulations(parallelCount: number = 2) {
   async doSimulations() {
     if (WIDTH % PIXEL_SIZE || HEIGHT % PIXEL_SIZE) {
       alert('Please use a pixel size that fits in the image dimensions precisely.');
@@ -167,6 +173,7 @@ export class AppComponent implements OnInit {
     for (let batchIndex = 0; batchIndex < batchesCount; batchIndex++) {
       const batchStartTime = performance.now();
       const batch = batches[batchIndex];
+      // const parallelBatches = Array(parallelCount).fill(null).map((_, i) => batches[batchIndex + i]);
       await this.doSimulationsBatch(batch);
       const batchTotalTime = performance.now() - batchStartTime;
       console.log('Batch', batchIndex, 'of', batchesCount, 'took', batchTotalTime);

@@ -9,6 +9,7 @@ import { SolverWorkerResponse } from 'src/classes/solver-worker-response';
 addEventListener('message', ({ data }) => {
   const solverData: SolverWorkerData = data;
   const bodies: DynamicBody[] = solverData.bodies;
+  const bodyIndexOffset: number = solverData.bodyIndexOffset;
   const dt: number = solverData.dt;
   const steps: number = solverData.steps;
   const collisions: CollisionInfo[] = [];
@@ -16,6 +17,6 @@ addEventListener('message', ({ data }) => {
     const currentTime = solverData.dynamicSystemTotalTime + step * dt;
     doPhysicsStep(bodies, dt, currentTime, collisions);
   }
-  const response: SolverWorkerResponse = { bodies, collisions };
+  const response: SolverWorkerResponse = { bodies, bodyIndexOffset, collisions };
   postMessage(response);
 });
