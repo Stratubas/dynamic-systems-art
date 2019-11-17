@@ -164,7 +164,7 @@ export class AppComponent implements OnInit {
       }
     }
     const batchesCount = Math.ceil(allSimulations.length / BATCH_SIZE);
-    console.log('Must do', batchesCount, 'batches.');
+    console.log('Splitting', allSimulations.length, 'simulations into batches of size', BATCH_SIZE, '->', batchesCount, 'batches.');
     const batches = Array(batchesCount).fill(null).map(() => []);
     for (const simulationInfo of allSimulations) {
       batches[simulationInfo.index % batchesCount].push(simulationInfo);

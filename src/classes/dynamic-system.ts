@@ -29,6 +29,7 @@ export class DynamicSystem {
 
     private workers: Worker[];
     private workerCollisionsResolvers: ((collisions: CollisionInfo[]) => void)[] = Array(WORKERS_COUNT);
+    private workerWorks: Promise<any>[] = Array(WORKERS_COUNT).fill(null).map((_, i) => Promise.resolve(i));
 
     constructor(public dt: number = 0.1) {
         if (workers) {
@@ -113,42 +114,51 @@ export class DynamicSystem {
         this.addBody(newBody);
     }
 
-    async doTimeSteps(timeUnits: number, parallel: number = 2): Promise<CollisionInfo[]> {
+    async doTimeSteps(timeUnits: number): Promise<CollisionInfo[]> { // TODO: make sure tasks work correctly
         const steps = Math.round(timeUnits / this.dt);
         const collisions: CollisionInfo[] = [];
         if (this.workers) {
-            const bodiesPerWorker = Math.ceil(this.smallBodies.length / this.workers.length);
-            const workersData: SolverWorkerData[] = [];
-            this.workers.forEach((_worker, workerIndex) => {
+            const bodiesPerBodyBatch = 64;
+            const bodyBatchesCount = Math.ceil(this.smallBodies.length / bodiesPerBodyBatch);
+            const bodyBatches = Array(bodyBatchesCount).fill(null).map(() => []);
+            for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
+                const body = this.smallBodies[bodyIndex];
+                const bodyBatchIndex = Math.floor(bodyIndex / bodiesPerBodyBatch);
+                bodyBatches[bodyBatchIndex].push(body);
+            }
+            const tasks: SolverWorkerData[] = bodyBatches.map((bodies, taskIndex) => {
                 const data: SolverWorkerData = {
-                    bodies: [],
-                    bodyIndexOffset: workerIndex * bodiesPerWorker,
+                    bodies,
+                    bodyIndexOffset: taskIndex * bodiesPerBodyBatch,
                     dt: this.dt,
                     dynamicSystemTotalTime: this.totalSteps * this.dt,
                     steps,
                     collisionTargets: [SPRING_ANCHOR],
                 };
-                workersData.push(data);
+                return data;
             });
-            for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
-                const body = this.smallBodies[bodyIndex];
-                const workerIndex = Math.floor(bodyIndex / bodiesPerWorker);
-                workersData[workerIndex].bodies.push(body);
-            }
+            // console.log('Split the simulation of', this.smallBodies.length, 'bodies into', tasks.length, 'tasks.');
+            // const tasksDoneByWorker = this.workers.map(() => []);
             const collisionsPromises: Promise<CollisionInfo[]>[] = [];
-            this.workers.forEach((worker, workerIndex) => {
-                const collisionsPromise = new Promise<CollisionInfo[]>(resolve => {
-                    this.workerCollisionsResolvers[workerIndex] = resolve;
+            for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
+                const task = tasks[taskIndex];
+                const nextFreeWorkerIndex = await Promise.race(this.workerWorks);
+                // tasksDoneByWorker[nextFreeWorkerIndex].push(taskIndex);
+                const nextFreeWorker = this.workers[nextFreeWorkerIndex];
+                const nextCollisionsPromise = new Promise<CollisionInfo[]>(resolve => {
+                    this.workerCollisionsResolvers[nextFreeWorkerIndex] = resolve;
                 });
-                collisionsPromises.push(collisionsPromise);
-                worker.postMessage(workersData[workerIndex]);
-            });
+                collisionsPromises.push(nextCollisionsPromise);
+                this.workerWorks[nextFreeWorkerIndex] = nextCollisionsPromise.then(() => nextFreeWorkerIndex);
+                nextFreeWorker.postMessage(task);
+            }
             const nestedCollisions = await Promise.all(collisionsPromises);
             for (const extraCollisions of nestedCollisions) {
                 for (const collision of extraCollisions) {
                     collisions.push(collision);
                 }
             }
+            // console.log('Tasks of each worker:', tasksDoneByWorker);
         } else {
             for (let step = 0; step < steps; step++) {
                 const totalTime = (this.totalSteps + step) * this.dt;
