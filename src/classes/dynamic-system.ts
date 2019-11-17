@@ -18,7 +18,6 @@ if (DO_WITH_WORKER && typeof Worker !== 'undefined') {
 }
 
 export class DynamicSystem {
-    public dt = 0.002;
     private totalSteps = 0;
     public massiveBodies: DynamicBody[] = [];
     public smallBodies: DynamicBody[] = [];
@@ -27,7 +26,7 @@ export class DynamicSystem {
     private worker: Worker;
     private workerCollisionsResolver: (collisions: CollisionInfo[]) => void;
 
-    constructor() {
+    constructor(public dt: number = 0.02) {
         if (worker) {
             this.worker = worker;
             worker.onmessage = ({ data }) => {
@@ -96,7 +95,8 @@ export class DynamicSystem {
         this.addBody(newBody);
     }
 
-    async doTimeSteps(steps: number = 1): Promise<CollisionInfo[]> {
+    async doTimeSteps(timeUnits: number): Promise<CollisionInfo[]> {
+        const steps = Math.round(timeUnits / this.dt);
         let collisions: CollisionInfo[] = [];
         if (this.worker) {
             const data: SolverWorkerData = {

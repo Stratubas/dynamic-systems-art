@@ -2,8 +2,8 @@ import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
 const PIXEL_SIZE = 2;
-const STEPS_PER_ITERATION = 1000;
-const GIVE_UP_ITERATIONS = 100000; // default: 100000
+const TOTAL_TIME_UNITS = 200;
+const TIME_UNITS_PER_FRAME = 10;
 const ANIMATION_DELAY = 0;
 const SHOW_SIMULATION = false;
 const LOOP_FOREVER = false;
@@ -12,8 +12,7 @@ const HEIGHT = 50;
 const SYSTEM_X_RANGE = [0.4, 0.6];
 const SYSTEM_Y_RANGE = [0.325, 0.525];
 // const SUN_MASS = 200;
-const ANIMATION_ITERATIONS_STEP = 1000;
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 25;
 // const ANIMATION_SCALE = 1 / 4;
 
 type SimulationInfo = { index: number, xPixelStart: number, yPixelStart: number, xBodyCoord: number, yBodyCoord: number };
@@ -70,15 +69,8 @@ export class AppComponent implements OnInit {
   }
 
   addWallpaperPixel(x: number, y: number, hitBodyIndex: number, collisionTime: number, customStyle?: string) {
-    const didGiveUp = Math.round(collisionTime / this.system.dt) == GIVE_UP_ITERATIONS;
     const hue = ['0', '0', '240'][hitBodyIndex + 1];
-    // const timeToFall = iteration * this.system.dt;
-    // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
-    // const zeroToOne = Math.min(1, timeToFall / maxTime);
     let light = 1 / (1 + collisionTime / 100); // Math.pow(10, -timeToFall / 1000);
-    if (didGiveUp && !LOOP_FOREVER) { light = 0; }
-    // if (LOOP_FOREVER) { light = 1; }
-    // const darkness = Math.pow(zeroToOne, 1 / 2);
     const style = customStyle || ('hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)');
     // const style = 'hsl(' + (2 * timeToFall % 360) + ',100%,' + 50 + '%)';
     this.wallpaperContext.fillStyle = style;
@@ -98,12 +90,11 @@ export class AppComponent implements OnInit {
     await new Promise(res => setTimeout(res, ANIMATION_DELAY));
     const hitIndexes: { [bodyIndex: number]: number } = {};
     const hitTimes: { [bodyIndex: number]: number } = {};
-    for (let iteration = 0; iteration <= GIVE_UP_ITERATIONS || LOOP_FOREVER; iteration += STEPS_PER_ITERATION) {
-      const collisions = await this.system.doTimeSteps(STEPS_PER_ITERATION);
-      // if (collisions.length) { console.log('Got', collisions.length, 'collisions.'); }
+    const totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
+    for (let frameIndex = 0; frameIndex < totalFrames || LOOP_FOREVER; frameIndex++) {
+      const collisions = await this.system.doTimeSteps(TIME_UNITS_PER_FRAME);
       for (const collision of collisions) {
         const batchBodyIndex = collision.bodyIndex;
-        // const simulationBodyIndex = simulationsInfo
         hitIndexes[batchBodyIndex] = collision.collidedTargetIndexes[0];
         hitTimes[batchBodyIndex] = collision.collisionTime;
         if (SHOW_SIMULATION) {
@@ -113,10 +104,10 @@ export class AppComponent implements OnInit {
           this.addWallpaperPixel(xPixelStart, yPixelStart, hitIndexes[batchBodyIndex], hitTimes[batchBodyIndex]);
         }
       }
-      if (SHOW_SIMULATION && iteration % ANIMATION_ITERATIONS_STEP == 0) {
+      if (SHOW_SIMULATION) {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.system.allBodies.forEach(body => {
-          const size = body.mass == 0 ? 4 : 10;//10 * body.mass;
+          const size = body.mass == 0 ? 4 : 10;
           const x = 400 * body.x - size / 2;
           const y = 400 * body.y - size / 2;
           this.context.fillRect(x, y, size, size);
@@ -127,10 +118,6 @@ export class AppComponent implements OnInit {
         break;
       }
     };
-    // const collisionTimes = simulationsInfo.map(info => hitTimes[info.index]);
-    // console.log(simulationsInfo);
-    // console.log(hitTimes);
-    // console.log(collisionTimes);
     for (let simulationInfoIndex = 0; simulationInfoIndex < simulationsInfo.length; simulationInfoIndex++) {
       const simulationInfo = simulationsInfo[simulationInfoIndex];
       const xPixel = simulationInfo.xPixelStart;
@@ -180,8 +167,6 @@ export class AppComponent implements OnInit {
     }
     const totalTime = performance.now() - startTime;
     console.log('Finished all', batchesCount, 'batches in', totalTime);
-    const totalSystemTime = this.system.dt * GIVE_UP_ITERATIONS;
-    console.log('Total dynamic system time:', totalSystemTime);
   }
 
 }
