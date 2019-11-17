@@ -1,9 +1,10 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 5;
+const PIXEL_SIZE = 20;
+const STEPS_PER_ITERATION = 1000;
 const GIVE_UP_ITERATIONS = 100000; // default: 100000
-const ANIMATION_DELAY = 100;
+const ANIMATION_DELAY = 0;
 const SHOW_SIMULATION = true;
 const LOOP_FOREVER = true;
 const WIDTH = 400;
@@ -99,8 +100,8 @@ export class AppComponent implements OnInit {
     // this.printBodies();
     const hitIndexes: { [bodyIndex: number]: number } = {};
     const hitIterations: { [bodyIndex: number]: number } = {};
-    for (let iteration = 1; iteration <= GIVE_UP_ITERATIONS || LOOP_FOREVER; iteration++) {
-      await this.system.doTimeStep();
+    for (let iteration = 1; iteration <= GIVE_UP_ITERATIONS || LOOP_FOREVER; iteration += STEPS_PER_ITERATION) {
+      await this.system.doTimeSteps(STEPS_PER_ITERATION);
       for (let bodyIndex = 0; bodyIndex < bodyPixels.length; bodyIndex++) {
         const collisions = this.system.getCollisionsOfSmallBodyWithIndex(bodyIndex);
         if (collisions.length > 0) {
@@ -118,7 +119,7 @@ export class AppComponent implements OnInit {
           }
         }
       }
-      if (SHOW_SIMULATION && iteration % ANIMATION_ITERATIONS_STEP == 0) {
+      if (SHOW_SIMULATION && (iteration - 1) % ANIMATION_ITERATIONS_STEP == 0) {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.system.allBodies.forEach(body => {
           const size = body.mass == 0 ? 4 : 10;//10 * body.mass;

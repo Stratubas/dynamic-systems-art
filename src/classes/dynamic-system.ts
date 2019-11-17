@@ -4,7 +4,7 @@ import { updateAccelerations } from 'src/physics-helpers/update-accelarations';
 import { updateVelocities } from 'src/physics-helpers/update-velocities';
 import { detectCollisions } from 'src/physics-helpers/detect-collisions';
 
-const DO_WITH_WORKER = false;
+const DO_WITH_WORKER = true;
 let worker: Worker;
 if (DO_WITH_WORKER && typeof Worker !== 'undefined') {
     console.log('Working with workers.');
@@ -95,12 +95,12 @@ export class DynamicSystem {
         return detectCollisions([this.smallBodies[bodyIndex]], [{ x: 0.5, y: 0.5 }])[0];
     }
 
-    async doTimeStep() {
-        if (DO_WITH_WORKER) {
+    async doTimeSteps(steps: number = 1) {
+        if (this.worker) {
             const data = {
                 bodies: this.smallBodies,
                 dt: this.dt,
-                steps: 1,
+                steps,
             };
             const promise = new Promise(resolve => this.workerResolver = resolve);
             // console.log('Posting message...', id);
@@ -110,9 +110,11 @@ export class DynamicSystem {
             // await new Promise(res => setTimeout(res, 100));
             // console.log('Done time step!');
         } else {
-            updatePositions(this.smallBodies, this.dt);
-            updateAccelerations(this.smallBodies);
-            updateVelocities(this.smallBodies, this.dt);
+            for (let step = 0; step < steps; step++) {
+                updatePositions(this.smallBodies, this.dt);
+                updateAccelerations(this.smallBodies);
+                updateVelocities(this.smallBodies, this.dt);
+            }
         }
     }
 }
