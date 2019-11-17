@@ -118,7 +118,7 @@ export class DynamicSystem {
         const steps = Math.round(timeUnits / this.dt);
         const collisions: CollisionInfo[] = [];
         if (this.workers) {
-            const bodiesPerBodyBatch = 64;
+            const bodiesPerBodyBatch = 64; // this.smallBodies.length / this.workers.length for even split
             const bodyBatchesCount = Math.ceil(this.smallBodies.length / bodiesPerBodyBatch);
             const bodyBatches = Array(bodyBatchesCount).fill(null).map(() => []);
             for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
