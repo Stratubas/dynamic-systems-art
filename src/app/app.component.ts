@@ -1,18 +1,18 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 8;
+const PIXEL_SIZE = 5;
 const GIVE_UP_ITERATIONS = 100000; // default: 100000
-const ANIMATION_DELAY = 0;
+const ANIMATION_DELAY = 100;
 const SHOW_SIMULATION = true;
 const LOOP_FOREVER = true;
-const WIDTH = 800;
-const HEIGHT = 400;
+const WIDTH = 400;
+const HEIGHT = 200;
 const SYSTEM_X_RANGE = [0.4, 0.6];
 const SYSTEM_Y_RANGE = [0.325, 0.525];
 const SUN_MASS = 200;
 const ANIMATION_ITERATIONS_STEP = 1000;
-const BATCH_COLUMN_SIZE = 400;
+const BATCH_COLUMN_SIZE = 1080;
 // const ANIMATION_SCALE = 1 / 4;
 
 @Component({
@@ -50,7 +50,7 @@ export class AppComponent implements OnInit {
 
   resetSystem() {
     this.system.reset();
-    this.system.addEasyBody(0.5, 0, SUN_MASS);
+    // this.system.addEasyBody(0.5, 0, SUN_MASS);
     // this.system.addEasyBody(0.5 + 0.25 * 0.2, -0.025, 2 * SUN_MASS);
     // this.system.addEasyBody(0.5 - 0.2, 0.1, 0.5 * SUN_MASS);
   }
@@ -100,7 +100,7 @@ export class AppComponent implements OnInit {
     const hitIndexes: { [bodyIndex: number]: number } = {};
     const hitIterations: { [bodyIndex: number]: number } = {};
     for (let iteration = 1; iteration <= GIVE_UP_ITERATIONS || LOOP_FOREVER; iteration++) {
-      this.system.doTimeStep();
+      await this.system.doTimeStep();
       for (let bodyIndex = 0; bodyIndex < bodyPixels.length; bodyIndex++) {
         const collisions = this.system.getCollisionsOfSmallBodyWithIndex(bodyIndex);
         if (collisions.length > 0) {
