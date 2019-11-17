@@ -1,18 +1,24 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 2;
+const PIXEL_SIZE = 4;
 const TOTAL_TIME_UNITS = 200;
 const TIME_UNITS_PER_FRAME = 10;
-const ANIMATION_DELAY = 0;
-const SHOW_SIMULATION = false;
+const ANIMATION_DELAY = 10;
+const SHOW_SIMULATION = true;
 const LOOP_FOREVER = false;
-const WIDTH = 50;
-const HEIGHT = 50;
-const SYSTEM_X_RANGE = [0.4, 0.6];
-const SYSTEM_Y_RANGE = [0.325, 0.525];
+const WIDTH = 192;
+const HEIGHT = 108;
+// const SYSTEM_X_RANGE = [0.4, 0.6];
+// const SYSTEM_Y_RANGE = [0.325, 0.525];
+const SYSTEM_X_CENTER = 0.5;
+const SYSTEM_Y_CENTER = 0.425;
+const SYSTEM_Y_HALF_SIZE = 0.1;
+const SYSTEM_Y_RANGE = [SYSTEM_Y_CENTER - SYSTEM_Y_HALF_SIZE, SYSTEM_Y_CENTER + SYSTEM_Y_HALF_SIZE];
+const SYSTEM_X_HALF_SIZE = SYSTEM_Y_HALF_SIZE * WIDTH / HEIGHT;
+const SYSTEM_X_RANGE = [SYSTEM_X_CENTER - SYSTEM_X_HALF_SIZE, SYSTEM_X_CENTER + SYSTEM_X_HALF_SIZE];
 // const SUN_MASS = 200;
-const BATCH_SIZE = 25;
+const BATCH_SIZE = WIDTH / PIXEL_SIZE;
 // const ANIMATION_SCALE = 1 / 4;
 
 type SimulationInfo = { index: number, xPixelStart: number, yPixelStart: number, xBodyCoord: number, yBodyCoord: number };
@@ -142,10 +148,10 @@ export class AppComponent implements OnInit {
       const xPixelCenter = (xPixelStart + xPixelEnd) / 2;
       const xRatio = xPixelCenter / WIDTH;
       const xBodyCoord = SYSTEM_X_RANGE[0] + xRatio * (SYSTEM_X_RANGE[1] - SYSTEM_X_RANGE[0]);
-      for (let yPixelStart = 0; yPixelStart < WIDTH; yPixelStart += PIXEL_SIZE) {
+      for (let yPixelStart = 0; yPixelStart < HEIGHT; yPixelStart += PIXEL_SIZE) {
         const yPixelEnd = yPixelStart + PIXEL_SIZE;
         const yPixelCenter = (yPixelStart + yPixelEnd) / 2;
-        const yRatio = yPixelCenter / WIDTH;
+        const yRatio = yPixelCenter / HEIGHT;
         const yBodyCoord = SYSTEM_Y_RANGE[0] + yRatio * (SYSTEM_Y_RANGE[1] - SYSTEM_Y_RANGE[0]);
         const simulationInfo = { index: allSimulations.length, xPixelStart, yPixelStart, xBodyCoord, yBodyCoord };
         allSimulations.push(simulationInfo);
