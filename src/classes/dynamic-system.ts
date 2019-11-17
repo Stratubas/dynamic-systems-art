@@ -1,8 +1,9 @@
 import { DynamicBody } from './dynamic-body';
-import { updatePositions } from 'src/physics-helpers/update-positions';
-import { updateAccelerations } from 'src/physics-helpers/update-accelarations';
-import { updateVelocities } from 'src/physics-helpers/update-velocities';
-import { detectCollisions } from 'src/physics-helpers/detect-collisions';
+import { SPRING_ANCHOR } from 'src/physics-helpers/update-accelarations';
+import { CollisionInfo } from 'src/physics-helpers/detect-collisions';
+import { SolverWorkerData } from './solver-worker-data';
+import { SolverWorkerResponse } from './solver-worker-response';
+import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
 
 const DO_WITH_WORKER = true;
 let worker: Worker;
@@ -18,30 +19,34 @@ if (DO_WITH_WORKER && typeof Worker !== 'undefined') {
 
 export class DynamicSystem {
     public dt = 0.002;
+    private totalSteps = 0;
     public massiveBodies: DynamicBody[] = [];
     public smallBodies: DynamicBody[] = [];
     public allBodies: DynamicBody[] = [];
 
     private worker: Worker;
-    private workerResolver: () => void;
+    private workerCollisionsResolver: (collisions: CollisionInfo[]) => void;
 
     constructor() {
         if (worker) {
             this.worker = worker;
             worker.onmessage = ({ data }) => {
+                const response: SolverWorkerResponse = data;
+                const newBodies = response.bodies;
                 for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
-                    this.smallBodies[bodyIndex].x = data[bodyIndex].x;
-                    this.smallBodies[bodyIndex].y = data[bodyIndex].y;
-                    this.smallBodies[bodyIndex].vx = data[bodyIndex].vx;
-                    this.smallBodies[bodyIndex].vy = data[bodyIndex].vy;
-                    this.smallBodies[bodyIndex].dead = data[bodyIndex].dead;
+                    this.smallBodies[bodyIndex].x = newBodies[bodyIndex].x;
+                    this.smallBodies[bodyIndex].y = newBodies[bodyIndex].y;
+                    this.smallBodies[bodyIndex].vx = newBodies[bodyIndex].vx;
+                    this.smallBodies[bodyIndex].vy = newBodies[bodyIndex].vy;
+                    this.smallBodies[bodyIndex].dead = newBodies[bodyIndex].dead;
                 }
-                this.workerResolver();
+                this.workerCollisionsResolver(response.collisions);
             };
         }
     }
 
     reset() {
+        this.totalSteps = 0;
         this.massiveBodies = [];
         this.smallBodies = [];
         this.allBodies = [];
@@ -91,30 +96,27 @@ export class DynamicSystem {
         this.addBody(newBody);
     }
 
-    getCollisionsOfSmallBodyWithIndex(bodyIndex: number): number[] {
-        return detectCollisions([this.smallBodies[bodyIndex]], [{ x: 0.5, y: 0.5 }])[0];
-    }
-
-    async doTimeSteps(steps: number = 1) {
+    async doTimeSteps(steps: number = 1): Promise<CollisionInfo[]> {
+        let collisions: CollisionInfo[] = [];
         if (this.worker) {
-            const data = {
+            const data: SolverWorkerData = {
                 bodies: this.smallBodies,
                 dt: this.dt,
+                dynamicSystemTotalTime: this.totalSteps * this.dt,
                 steps,
+                collisionTargets: [SPRING_ANCHOR],
             };
-            const promise = new Promise(resolve => this.workerResolver = resolve);
-            // console.log('Posting message...', id);
+            const collisionsPromise = new Promise<CollisionInfo[]>(resolve => this.workerCollisionsResolver = resolve);
             this.worker.postMessage(data);
-            await promise;
-            // console.log('Promise is done...', id);
-            // await new Promise(res => setTimeout(res, 100));
-            // console.log('Done time step!');
+            collisions = await collisionsPromise;
+
         } else {
             for (let step = 0; step < steps; step++) {
-                updatePositions(this.smallBodies, this.dt);
-                updateAccelerations(this.smallBodies);
-                updateVelocities(this.smallBodies, this.dt);
+                const totalTime = (this.totalSteps + step) * this.dt;
+                doPhysicsStep(this.smallBodies, this.dt, totalTime, collisions);
             }
         }
+        this.totalSteps += steps;
+        return collisions;
     }
 }

@@ -3,7 +3,7 @@ import { resetAccelerations } from './reset-accelerations';
 import { addAccelerationsSpring } from './add-accelerations-spring';
 import { addAccelerationsGeneric } from './add-accelerations-generic';
 
-const SPRING_ANCHOR = { x: 0.5, y: 0.5 };
+export const SPRING_ANCHOR = { x: 0.5, y: 0.5 };
 const GRAVITY_G = 0.01;
 
 export function updateAccelerations(bodies: DynamicBody[]) {

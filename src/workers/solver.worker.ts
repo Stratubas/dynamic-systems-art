@@ -1,18 +1,21 @@
 /// <reference lib="webworker" />
 
-import { DynamicBody } from "src/classes/dynamic-body";
-import { updatePositions } from 'src/physics-helpers/update-positions';
-import { updateAccelerations } from 'src/physics-helpers/update-accelarations';
-import { updateVelocities } from 'src/physics-helpers/update-velocities';
+import { DynamicBody } from 'src/classes/dynamic-body';
+import { CollisionInfo } from 'src/physics-helpers/detect-collisions';
+import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
+import { SolverWorkerData } from 'src/classes/solver-worker-data';
+import { SolverWorkerResponse } from 'src/classes/solver-worker-response';
 
 addEventListener('message', ({ data }) => {
-  const bodies: DynamicBody[] = data.bodies;
-  const dt: number = data.dt;
-  const steps: number = data.steps;
+  const solverData: SolverWorkerData = data;
+  const bodies: DynamicBody[] = solverData.bodies;
+  const dt: number = solverData.dt;
+  const steps: number = solverData.steps;
+  const collisions: CollisionInfo[] = [];
   for (let step = 0; step < steps; step++) {
-    updatePositions(bodies, dt);
-    updateAccelerations(bodies);
-    updateVelocities(bodies, dt);
+    const currentTime = solverData.dynamicSystemTotalTime + step * dt;
+    doPhysicsStep(bodies, dt, currentTime, collisions);
   }
-  postMessage(bodies);
+  const response: SolverWorkerResponse = { bodies, collisions };
+  postMessage(response);
 });

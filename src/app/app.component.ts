@@ -1,20 +1,22 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 20;
+const PIXEL_SIZE = 2;
 const STEPS_PER_ITERATION = 1000;
 const GIVE_UP_ITERATIONS = 100000; // default: 100000
 const ANIMATION_DELAY = 0;
-const SHOW_SIMULATION = true;
-const LOOP_FOREVER = true;
-const WIDTH = 400;
-const HEIGHT = 200;
+const SHOW_SIMULATION = false;
+const LOOP_FOREVER = false;
+const WIDTH = 50;
+const HEIGHT = 50;
 const SYSTEM_X_RANGE = [0.4, 0.6];
 const SYSTEM_Y_RANGE = [0.325, 0.525];
-const SUN_MASS = 200;
+// const SUN_MASS = 200;
 const ANIMATION_ITERATIONS_STEP = 1000;
-const BATCH_COLUMN_SIZE = 1080;
+const BATCH_SIZE = 10;
 // const ANIMATION_SCALE = 1 / 4;
+
+type SimulationInfo = { index: number, xPixelStart: number, yPixelStart: number, xBodyCoord: number, yBodyCoord: number };
 
 @Component({
   selector: 'app-root',
@@ -59,67 +61,59 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     this.canvas = this.myCanvas.nativeElement;
     this.context = this.canvas.getContext('2d');
-    this.wallpaperContext = this.wallpaperCanvasRef.nativeElement.getContext('2d');
-    setTimeout(() => this.wallpaperContext.fillRect(0, 0, WIDTH, HEIGHT));
-    this.doSimulations();
+    const wallpaperCanvas: HTMLCanvasElement = this.wallpaperCanvasRef.nativeElement;
+    this.wallpaperContext = wallpaperCanvas.getContext('2d');
+    setTimeout(() => {
+      // this.wallpaperContext.fillRect(0, 0, WIDTH, HEIGHT);
+      this.doSimulations();
+    });
   }
 
-  addWallpaperPixel(x: number, y: number, hitBodyIndex: number, iteration: number, size: number = 1) {
+  addWallpaperPixel(x: number, y: number, hitBodyIndex: number, collisionTime: number, customStyle?: string) {
+    const didGiveUp = Math.round(collisionTime / this.system.dt) == GIVE_UP_ITERATIONS;
     const hue = ['0', '0', '240'][hitBodyIndex + 1];
-    const timeToFall = iteration * this.system.dt;
+    // const timeToFall = iteration * this.system.dt;
     // const maxTime = GIVE_UP_ITERATIONS * this.system.dt;
     // const zeroToOne = Math.min(1, timeToFall / maxTime);
-    let light = 1 / (1 + timeToFall / 100); // Math.pow(10, -timeToFall / 1000);
-    if (iteration == GIVE_UP_ITERATIONS && !LOOP_FOREVER) { light = 0; }
+    let light = 1 / (1 + collisionTime / 100); // Math.pow(10, -timeToFall / 1000);
+    if (didGiveUp && !LOOP_FOREVER) { light = 0; }
     // if (LOOP_FOREVER) { light = 1; }
     // const darkness = Math.pow(zeroToOne, 1 / 2);
-    const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)';
+    const style = customStyle || ('hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)');
     // const style = 'hsl(' + (2 * timeToFall % 360) + ',100%,' + 50 + '%)';
     this.wallpaperContext.fillStyle = style;
-    this.wallpaperContext.fillRect(x, y, size, size);
+    this.wallpaperContext.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE);
   }
 
-  async doSimulationsBatch(xPixels: number[], step: number, results: any[]) {
-    const start = performance.now();
+  async doSimulationsBatch(simulationsInfo: SimulationInfo[]) {
     this.resetSystem();
-    const bodyPixels = [];
-    const minDimension = Math.min(WIDTH, HEIGHT);
-    const paddingX = Math.max(0, WIDTH - minDimension) / 2;
-    const paddingY = Math.max(0, HEIGHT - minDimension) / 2;
-    for (const xPixel of xPixels) {
-      for (let yPixel = 0; yPixel < HEIGHT; yPixel += step) {
-        const scaleX = SYSTEM_X_RANGE[1] - SYSTEM_X_RANGE[0];
-        const scaleY = SYSTEM_Y_RANGE[1] - SYSTEM_Y_RANGE[0];
-        const xCoord = SYSTEM_X_RANGE[0] + scaleX * (-paddingX + xPixel + PIXEL_SIZE / 2) / minDimension;
-        const yCoord = SYSTEM_Y_RANGE[0] + scaleY * (-paddingY + yPixel + PIXEL_SIZE / 2) / minDimension;
-        this.system.addRestingBody(xCoord, yCoord, 0);
-        // console.log(xCoord, yCoord);
-        bodyPixels.push({ xPixel, yPixel });
-      }
+    for (const simulationInfo of simulationsInfo) {
+      const xCoord = simulationInfo.xBodyCoord;
+      const yCoord = simulationInfo.yBodyCoord;
+      this.system.addRestingBody(xCoord, yCoord, 0);
+      const xPixelStart = simulationInfo.xPixelStart;
+      const yPixelStart = simulationInfo.yPixelStart;
+      this.addWallpaperPixel(xPixelStart, yPixelStart, 0, 0, 'gray');
     }
-    // this.printBodies();
+    await new Promise(res => setTimeout(res, ANIMATION_DELAY));
     const hitIndexes: { [bodyIndex: number]: number } = {};
-    const hitIterations: { [bodyIndex: number]: number } = {};
-    for (let iteration = 1; iteration <= GIVE_UP_ITERATIONS || LOOP_FOREVER; iteration += STEPS_PER_ITERATION) {
-      await this.system.doTimeSteps(STEPS_PER_ITERATION);
-      for (let bodyIndex = 0; bodyIndex < bodyPixels.length; bodyIndex++) {
-        const collisions = this.system.getCollisionsOfSmallBodyWithIndex(bodyIndex);
-        if (collisions.length > 0) {
-          hitIndexes[bodyIndex] = collisions[0];
-          hitIterations[bodyIndex] = iteration;
-          this.system.smallBodies[bodyIndex].x = 10;
-          this.system.smallBodies[bodyIndex].vx = 10;
-          if (SHOW_SIMULATION) {
-            const pixels = bodyPixels[bodyIndex];
-            this.addWallpaperPixel(pixels.xPixel, pixels.yPixel, collisions[0], iteration, step);
-          }
-          this.system.smallBodies[bodyIndex].dead = true;
-          if (Object.keys(hitIndexes).length == this.system.smallBodies.length) {
-            break;
-          }
+    const hitTimes: { [bodyIndex: number]: number } = {};
+    for (let iteration = 0; iteration <= GIVE_UP_ITERATIONS || LOOP_FOREVER; iteration += STEPS_PER_ITERATION) {
+      const collisions = await this.system.doTimeSteps(STEPS_PER_ITERATION);
+      // if (collisions.length) { console.log('Got', collisions.length, 'collisions.'); }
+      for (const collision of collisions) {
+        const batchBodyIndex = collision.bodyIndex;
+        // const simulationBodyIndex = simulationsInfo
+        hitIndexes[batchBodyIndex] = collision.collidedTargetIndexes[0];
+        hitTimes[batchBodyIndex] = collision.collisionTime;
+        if (SHOW_SIMULATION) {
+          const simulationInfo = simulationsInfo[batchBodyIndex];
+          const xPixelStart = simulationInfo.xPixelStart;
+          const yPixelStart = simulationInfo.yPixelStart;
+          this.addWallpaperPixel(xPixelStart, yPixelStart, hitIndexes[batchBodyIndex], hitTimes[batchBodyIndex]);
         }
       }
-      if (SHOW_SIMULATION && (iteration - 1) % ANIMATION_ITERATIONS_STEP == 0) {
+      if (SHOW_SIMULATION && iteration % ANIMATION_ITERATIONS_STEP == 0) {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.system.allBodies.forEach(body => {
           const size = body.mass == 0 ? 4 : 10;//10 * body.mass;
@@ -129,53 +123,65 @@ export class AppComponent implements OnInit {
         });
         await new Promise(res => setTimeout(res, ANIMATION_DELAY));
       }
+      if (Object.keys(hitIndexes).length == this.system.smallBodies.length) {
+        break;
+      }
     };
-    // console.log(hitIterations);
-    for (let bodyIndex = 0; bodyIndex < bodyPixels.length; bodyIndex++) {
-      const xPixel = bodyPixels[bodyIndex].xPixel;
-      const yPixel = bodyPixels[bodyIndex].yPixel;
-      const hitIndex = hitIndexes[bodyIndex] == undefined ? -1 : hitIndexes[bodyIndex];
-      const iteration = hitIterations[bodyIndex] || GIVE_UP_ITERATIONS;
-      // results.push({xPixel, yPixel, hitIndex, iteration, step});
-      this.addWallpaperPixel(xPixel, yPixel, hitIndex, iteration, step);
+    // const collisionTimes = simulationsInfo.map(info => hitTimes[info.index]);
+    // console.log(simulationsInfo);
+    // console.log(hitTimes);
+    // console.log(collisionTimes);
+    for (let simulationInfoIndex = 0; simulationInfoIndex < simulationsInfo.length; simulationInfoIndex++) {
+      const simulationInfo = simulationsInfo[simulationInfoIndex];
+      const xPixel = simulationInfo.xPixelStart;
+      const yPixel = simulationInfo.yPixelStart;
+      const collisionTime = hitTimes[simulationInfoIndex];
+      if (collisionTime === undefined) {
+        this.addWallpaperPixel(xPixel, yPixel, 0, 0, 'black');
+      } else {
+        this.addWallpaperPixel(xPixel, yPixel, 0, collisionTime);
+      }
     }
-    console.log('Last batch took:', performance.now() - start);
   }
 
   async doSimulations() {
-    const results = [];
-    const start = performance.now();
-    const step = PIXEL_SIZE;
-    let xPixel = 0;
-    const batchColumnsSize = BATCH_COLUMN_SIZE;
-    const loop = async () => new Promise(resolve => {
-      setTimeout(async () => {
-        const xPixels = [];
-        for (let column = 0; column < batchColumnsSize; column++) {
-          const nextXPixel = xPixel + column * step;
-          if (nextXPixel >= WIDTH) { break; }
-          xPixels.push(nextXPixel);
-        }
-        await this.doSimulationsBatch(xPixels, step, results);
-        xPixel = xPixels[xPixels.length - 1] + step;
-        if (xPixel < WIDTH) { return await loop(); }
-        console.log('All simulations took:', performance.now() - start);
-        // const resultsString = JSON.stringify(results);
-        // localStorage.setItem('springResults', resultsString);
-        // console.log(localStorage.getItem('springResults'));
-        resolve();
-      });
-    });
-    await loop();
-    // // This is the equivalent using setInterval
-    // const interval = setInterval(() => {
-    //   this.doSimulationsBatch(xPixel, step);
-    //   xPixel += step;
-    //   if (xPixel >= 400) {
-    //     clearInterval(interval);
-    //     console.log('All simulations took:', performance.now() - start);
-    //   }
-    // });
+    if (WIDTH % PIXEL_SIZE || HEIGHT % PIXEL_SIZE) {
+      alert('Please use a pixel size that fits in the image dimensions precisely.');
+      return;
+    }
+    const allSimulations: SimulationInfo[] = [];
+    for (let xPixelStart = 0; xPixelStart < WIDTH; xPixelStart += PIXEL_SIZE) {
+      const xPixelEnd = xPixelStart + PIXEL_SIZE;
+      const xPixelCenter = (xPixelStart + xPixelEnd) / 2;
+      const xRatio = xPixelCenter / WIDTH;
+      const xBodyCoord = SYSTEM_X_RANGE[0] + xRatio * (SYSTEM_X_RANGE[1] - SYSTEM_X_RANGE[0]);
+      for (let yPixelStart = 0; yPixelStart < WIDTH; yPixelStart += PIXEL_SIZE) {
+        const yPixelEnd = yPixelStart + PIXEL_SIZE;
+        const yPixelCenter = (yPixelStart + yPixelEnd) / 2;
+        const yRatio = yPixelCenter / WIDTH;
+        const yBodyCoord = SYSTEM_Y_RANGE[0] + yRatio * (SYSTEM_Y_RANGE[1] - SYSTEM_Y_RANGE[0]);
+        const simulationInfo = { index: allSimulations.length, xPixelStart, yPixelStart, xBodyCoord, yBodyCoord };
+        allSimulations.push(simulationInfo);
+      }
+    }
+    const batchesCount = Math.ceil(allSimulations.length / BATCH_SIZE);
+    console.log('Must do', batchesCount, 'batches.');
+    const batches = Array(batchesCount).fill(null).map(() => []);
+    for (const simulationInfo of allSimulations) {
+      batches[simulationInfo.index % batchesCount].push(simulationInfo);
+    }
+    const startTime = performance.now();
+    for (let batchIndex = 0; batchIndex < batchesCount; batchIndex++) {
+      const batchStartTime = performance.now();
+      const batch = batches[batchIndex];
+      await this.doSimulationsBatch(batch);
+      const batchTotalTime = performance.now() - batchStartTime;
+      console.log('Batch', batchIndex, 'of', batchesCount, 'took', batchTotalTime);
+    }
+    const totalTime = performance.now() - startTime;
+    console.log('Finished all', batchesCount, 'batches in', totalTime);
+    const totalSystemTime = this.system.dt * GIVE_UP_ITERATIONS;
+    console.log('Total dynamic system time:', totalSystemTime);
   }
 
 }
