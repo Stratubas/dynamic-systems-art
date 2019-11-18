@@ -9,7 +9,7 @@ import { SolverWorkerResponse } from './solver-worker-response';
 const gpu = new GPU();
 const DT = 0.1;
 
-const WORKERS_COUNT = 4; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
+const WORKERS_COUNT = 0; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
 let workers: Worker[];
 if (WORKERS_COUNT && typeof Worker !== 'undefined') {
     console.log('Working with', WORKERS_COUNT, 'worker(s).');
@@ -83,10 +83,24 @@ export class DynamicSystem {
 
     initGpu() {
         const allBodies = this.allBodies;
+        const settings = {
+            output: { x: allBodies.length * 2 },
+            constants: {
+                dt: this.dt,
+                totalTime: this.totalSteps * this.dt,
+                bodyCount: allBodies.length,
+            },
+        };
         // tslint:disable-next-line: only-arrow-functions
         this.doTimeStepInGpu = gpu.createKernel(function (xyVxVy: number[], ratesOfChange: number[]) {
+            // // TODO
+            // const bodies = [];
+            // for (let bodyIndex = 0; bodyIndex < this.constants.bodyCount; bodyIndex++) {
+            //     // bodies
+            // }
+            // doPhysicsStep(bodies, this.constants.dt, this.constants.totalTime);
             return 0; // values[this.thread.x] + ratesOfChange[this.thread.x] * 0.002;
-        }).setOutput([allBodies.length * 2]);
+        }, settings);
     }
 
     addRandomBody() {
@@ -175,8 +189,25 @@ export class DynamicSystem {
             // console.log('Tasks of each worker:', tasksDoneByWorker);
         } else {
             for (let step = 0; step < steps; step++) {
-                const totalTime = (this.totalSteps + step) * this.dt;
-                doPhysicsStep(this.smallBodies, this.dt, totalTime, collisions);
+                // const totalTime = (this.totalSteps + step) * this.dt;
+                // doPhysicsStep(this.smallBodies, this.dt, totalTime, collisions);
+                const allXY = Array(this.allBodies.length * 2);
+                const allVxVy = Array(this.allBodies.length * 2);
+                for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
+                    allXY[bodyIndex1] = this.allBodies[bodyIndex1].x;
+                    allXY[bodyIndex1 + this.allBodies.length] = this.allBodies[bodyIndex1].y;
+                    allVxVy[bodyIndex1] = this.allBodies[bodyIndex1].vx;
+                    allVxVy[bodyIndex1 + this.allBodies.length] = this.allBodies[bodyIndex1].vy;
+                }
+                const newXY = this.doTimeStepInGpu(allXY, allVxVy) as number[];
+                // console.log('GPU new X:', newPositions);
+                let body: DynamicBody;
+                for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
+                    body = this.allBodies[bodyIndex1];
+                    if (body.dead) { continue; }
+                    body.x = newXY[bodyIndex1];
+                    body.y = newXY[bodyIndex1 + this.allBodies.length];
+                }
             }
         }
         this.totalSteps += steps;

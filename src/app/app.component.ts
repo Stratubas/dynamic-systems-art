@@ -1,7 +1,7 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 8;
+const PIXEL_SIZE = 120;
 const TOTAL_TIME_UNITS = 2000;
 const TIME_UNITS_PER_FRAME = 100;
 const ANIMATION_DELAY = 10;
