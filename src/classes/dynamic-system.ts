@@ -1,23 +1,76 @@
 import { DynamicBody } from './dynamic-body';
 import * as GPU from 'src/libraries/gpu.js';
+import { SPRING_ANCHOR } from 'src/physics-helpers/update-accelarations';
+import { CollisionInfo } from 'src/physics-helpers/detect-collisions';
+import { SolverWorkerData } from './solver-worker-data';
+import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
+import { SolverWorkerResponse } from './solver-worker-response';
 
 const gpu = new GPU();
-const DT = 0.002;
+const DT = 0.1;
+
+const WORKERS_COUNT = 4; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
+let workers: Worker[];
+if (WORKERS_COUNT && typeof Worker !== 'undefined') {
+    console.log('Working with', WORKERS_COUNT, 'worker(s).');
+    try {
+        workers = Array(WORKERS_COUNT).fill(null).map(() => new Worker('../workers/solver.worker', { type: 'module' }));
+    } catch (error) {
+        console.log(error)
+    }
+} else if (WORKERS_COUNT) {
+    console.error('Workers not available!');
+    alert('Your browser is not compatible :(');
+} else {
+    console.log('Working without workers.');
+}
 
 export class DynamicSystem {
-    public dt = DT;
+    private totalSteps = 0;
     public massiveBodies: DynamicBody[] = [];
     public smallBodies: DynamicBody[] = [];
     public allBodies: DynamicBody[] = [];
 
+    private workers: Worker[];
+    private workerCollisionsResolvers: ((collisions: CollisionInfo[]) => void)[] = Array(WORKERS_COUNT);
+    private workerWorks: Promise<any>[] = Array(WORKERS_COUNT).fill(null).map((_, i) => Promise.resolve(i));
+
     private doTimeStepInGpu: any;
 
-    constructor() {
-        //public bodies: DynamicBody[] = []
-        // console.log(gpu);
+    constructor(public dt: number = DT) {
+        if (workers) {
+            this.workers = workers;
+            workers.forEach((worker, workerIndex) => {
+                worker.onmessage = ({ data }) => {
+                    const response: SolverWorkerResponse = data;
+                    this.processWorkerResponse(response, workerIndex);
+                };
+            });
+        }
+    }
+
+    processWorkerResponse(response: SolverWorkerResponse, workerIndex: number) {
+        const bodyIndexOffset = response.bodyIndexOffset;
+        const newBodies = response.bodies;
+        for (let bodyIndex = 0; bodyIndex < newBodies.length; bodyIndex++) {
+            const newBody = newBodies[bodyIndex];
+            const thisBodyIndex = bodyIndex + bodyIndexOffset;
+            const thisBody = this.smallBodies[thisBodyIndex];
+            thisBody.x = newBody.x;
+            thisBody.y = newBody.y;
+            thisBody.vx = newBody.vx;
+            thisBody.vy = newBody.vy;
+            thisBody.dead = newBody.dead;
+        }
+        for (const collisionInfo of response.collisions) {
+            collisionInfo.bodyIndex += bodyIndexOffset;
+        }
+        const resolverFunction = this.workerCollisionsResolvers[workerIndex];
+        resolverFunction(response.collisions);
     }
 
     reset() {
+        this.totalSteps = 0;
         this.massiveBodies = [];
         this.smallBodies = [];
         this.allBodies = [];
@@ -30,8 +83,9 @@ export class DynamicSystem {
 
     initGpu() {
         const allBodies = this.allBodies;
+        // tslint:disable-next-line: only-arrow-functions
         this.doTimeStepInGpu = gpu.createKernel(function (xyVxVy: number[], ratesOfChange: number[]) {
-            return values[this.thread.x] + ratesOfChange[this.thread.x] * 0.002;
+            return 0; // values[this.thread.x] + ratesOfChange[this.thread.x] * 0.002;
         }).setOutput([allBodies.length * 2]);
     }
 
@@ -74,134 +128,58 @@ export class DynamicSystem {
         this.addBody(newBody);
     }
 
-    getCollisionsOfSmallBodyWithIndex(bodyIndex: number): number[] {
-        const result = [];
-        let index = 0;
-        const body1 = this.smallBodies[bodyIndex];
-        // if (body1.dead) { return result; }
-        for (const body2 of this.massiveBodies) {
-            // if (body1 == body2) { continue; }
-            const dx = body2.x - body1.x;
-            const dy = body2.y - body1.y;
-            const r2 = dx * dx + dy * dy;
-            if (r2 < 0.0005) { result.push(index); }
-            index++;
-        }
-        return result;
-    }
-
-    /*doTimeStepInline() {
-        // this.updatePositions();
-        let body1: DynamicBody;
-        let body2: DynamicBody;
-        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
-            body1 = this.bodies[bodyIndex1];
-            body1.x += this.dt * body1.vx;
-            body1.y += this.dt * body1.vy;
-        }
-        // this.updateAccelerations();
-        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
-            body1 = this.bodies[bodyIndex1];
-            body1.ax = 0;
-            body1.ay = 0;
-        }
-        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
-            body1 = this.bodies[bodyIndex1];
-            for (let bodyIndex2 = bodyIndex1 + 1; bodyIndex2 < this.bodies.length; bodyIndex2++) {
-                body2 = this.bodies[bodyIndex2];
-                const dx = body2.x - body1.x;
-                const dy = body2.y - body1.y;
-                const r2 = dx * dx + dy * dy;
-                const factor = this.dt / (r2 * Math.sqrt(r2));
-                body1.ax += body2.mass * dx * factor;
-                body1.ay += body2.mass * dy * factor;
-                body2.ax -= body1.mass * dx * factor;
-                body2.ay -= body1.mass * dy * factor;
+    async doTimeSteps(timeUnits: number): Promise<CollisionInfo[]> { // TODO: make sure tasks work correctly
+        const steps = Math.round(timeUnits / this.dt);
+        const collisions: CollisionInfo[] = [];
+        if (this.workers) {
+            const bodiesPerBodyBatch = Math.ceil(0.125 * this.smallBodies.length / this.workers.length); // for even split
+            const bodyBatchesCount = Math.ceil(this.smallBodies.length / bodiesPerBodyBatch);
+            const bodyBatches = Array(bodyBatchesCount).fill(null).map(() => []);
+            for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
+                const body = this.smallBodies[bodyIndex];
+                const bodyBatchIndex = Math.floor(bodyIndex / bodiesPerBodyBatch);
+                bodyBatches[bodyBatchIndex].push(body);
+            }
+            const tasks: SolverWorkerData[] = bodyBatches.map((bodies, taskIndex) => {
+                const data: SolverWorkerData = {
+                    bodies,
+                    bodyIndexOffset: taskIndex * bodiesPerBodyBatch,
+                    dt: this.dt,
+                    dynamicSystemTotalTime: this.totalSteps * this.dt,
+                    steps,
+                    collisionTargets: [SPRING_ANCHOR],
+                };
+                return data;
+            });
+            // console.log('Split the simulation of', this.smallBodies.length, 'bodies into', tasks.length, 'tasks.');
+            // const tasksDoneByWorker = this.workers.map(() => []);
+            const collisionsPromises: Promise<CollisionInfo[]>[] = [];
+            for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
+                const task = tasks[taskIndex];
+                const nextFreeWorkerIndex = await Promise.race(this.workerWorks);
+                // tasksDoneByWorker[nextFreeWorkerIndex].push(taskIndex);
+                const nextFreeWorker = this.workers[nextFreeWorkerIndex];
+                const nextCollisionsPromise = new Promise<CollisionInfo[]>(resolve => {
+                    this.workerCollisionsResolvers[nextFreeWorkerIndex] = resolve;
+                });
+                collisionsPromises.push(nextCollisionsPromise);
+                this.workerWorks[nextFreeWorkerIndex] = nextCollisionsPromise.then(() => nextFreeWorkerIndex);
+                nextFreeWorker.postMessage(task);
+            }
+            const nestedCollisions = await Promise.all(collisionsPromises);
+            for (const extraCollisions of nestedCollisions) {
+                for (const collision of extraCollisions) {
+                    collisions.push(collision);
+                }
+            }
+            // console.log('Tasks of each worker:', tasksDoneByWorker);
+        } else {
+            for (let step = 0; step < steps; step++) {
+                const totalTime = (this.totalSteps + step) * this.dt;
+                doPhysicsStep(this.smallBodies, this.dt, totalTime, collisions);
             }
         }
-        // this.updateVelocities();
-        for (let bodyIndex1 = 0; bodyIndex1 < this.bodies.length; bodyIndex1++) {
-            body1 = this.bodies[bodyIndex1];
-            body1.vx += this.dt * body1.ax;
-            body1.vy += this.dt * body1.ay;
-        }
-    }*/
-
-    doTimeStep() {
-        this.updatePositions();
-        this.updateAccelerations();
-        this.updateVelocities();
-    }
-
-    private updateAccelerations() {
-        for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
-            const body1 = this.allBodies[bodyIndex1];
-            // if (body1.dead) { continue; }
-            body1.ax = 0;
-            body1.ay = 0;
-        }
-        for (let bodyIndex1 = 0; bodyIndex1 < this.massiveBodies.length; bodyIndex1++) {
-            const body1 = this.massiveBodies[bodyIndex1];
-            for (let bodyIndex2 = bodyIndex1 + 1; bodyIndex2 < this.massiveBodies.length; bodyIndex2++) {
-                const body2 = this.massiveBodies[bodyIndex2];
-                const dx = body2.x - body1.x;
-                const dy = body2.y - body1.y;
-                const r2 = dx * dx + dy * dy;
-                const factor = this.dt / (r2 * Math.sqrt(r2));
-                const dxf = dx * factor;
-                const dyf = dy * factor;
-                body1.ax += body2.mass * dxf;
-                body1.ay += body2.mass * dyf;
-                body2.ax -= body1.mass * dxf;
-                body2.ay -= body1.mass * dyf;
-            }
-            for (let bodyIndex2 = 0; bodyIndex2 < this.smallBodies.length; bodyIndex2++) {
-                const body2 = this.smallBodies[bodyIndex2];
-                // if (body2.dead) { continue; }
-                const dx = body2.x - body1.x;
-                const dy = body2.y - body1.y;
-                const r2 = dx * dx + dy * dy;
-                // if (r2 > 100) { continue; }
-                const factor = this.dt / (r2 * Math.sqrt(r2));
-                const dxf = dx * factor;
-                const dyf = dy * factor;
-                body2.ax -= body1.mass * dxf;
-                body2.ay -= body1.mass * dyf;
-            }
-        }
-    }
-
-    private updateVelocities() {
-        let body: DynamicBody;
-        for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
-            body = this.allBodies[bodyIndex1];
-            // if (body.dead) { continue; }
-            body.vx += this.dt * body.ax;
-            body.vy += this.dt * body.ay;
-        }
-    }
-
-    private updatePositions() {
-        const allXY = Array(this.allBodies.length * 2);
-        const allVxVy = Array(this.allBodies.length * 2);
-        for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
-            allXY[bodyIndex1] = this.allBodies[bodyIndex1].x;
-            allXY[bodyIndex1 + this.allBodies.length] = this.allBodies[bodyIndex1].y;
-            allVxVy[bodyIndex1] = this.allBodies[bodyIndex1].vx;
-            allVxVy[bodyIndex1 + this.allBodies.length] = this.allBodies[bodyIndex1].vy;
-        }
-        const newXY = this.doTimeStepInGpu(allXY, allVxVy) as number[];
-        // const newY = this.incrementInGpu(allY, allVy, this.dt) as number[];
-        // console.log('GPU new X:', newPositions);
-        let body: DynamicBody;
-        for (let bodyIndex1 = 0; bodyIndex1 < this.allBodies.length; bodyIndex1++) {
-            body = this.allBodies[bodyIndex1];
-            // if (body.dead) { continue; }
-            body.x = newXY[bodyIndex1];
-            body.y = newXY[bodyIndex1 + this.allBodies.length];
-            // body.x += this.dt * body.vx;
-            // body.y += this.dt * body.vy;
-        }
-        // console.log('CPU new X:', this.allBodies.map(body => body.x));
+        this.totalSteps += steps;
+        return collisions;
     }
 }
