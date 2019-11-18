@@ -1,14 +1,14 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 
-const PIXEL_SIZE = 1;
+const PIXEL_SIZE = 8;
 const TOTAL_TIME_UNITS = 2000;
 const TIME_UNITS_PER_FRAME = 100;
 const ANIMATION_DELAY = 10;
 const SHOW_SIMULATION = false;
 const LOOP_FOREVER = false;
-const WIDTH = 1920 / 20;
-const HEIGHT = 1080 / 20;
+const WIDTH = 1920;
+const HEIGHT = 1080;
 // const SYSTEM_X_RANGE = [0.4, 0.6];
 // const SYSTEM_Y_RANGE = [0.325, 0.525];
 const SYSTEM_X_CENTER = 0.5;
@@ -18,10 +18,10 @@ const SYSTEM_Y_RANGE = [SYSTEM_Y_CENTER - SYSTEM_Y_HALF_SIZE, SYSTEM_Y_CENTER + 
 const SYSTEM_X_HALF_SIZE = SYSTEM_Y_HALF_SIZE * WIDTH / HEIGHT;
 const SYSTEM_X_RANGE = [SYSTEM_X_CENTER - SYSTEM_X_HALF_SIZE, SYSTEM_X_CENTER + SYSTEM_X_HALF_SIZE];
 // const SUN_MASS = 200;
-const BATCH_SIZE = WIDTH / PIXEL_SIZE;
+const BATCH_SIZE = 7 * WIDTH / PIXEL_SIZE;
 // const ANIMATION_SCALE = 1 / 4;
 
-type SimulationInfo = { index: number, xPixelStart: number, yPixelStart: number, xBodyCoord: number, yBodyCoord: number };
+interface SimulationInfo { index: number; xPixelStart: number; yPixelStart: number; xBodyCoord: number; yBodyCoord: number; }
 
 @Component({
   selector: 'app-root',
@@ -76,7 +76,7 @@ export class AppComponent implements OnInit {
 
   addWallpaperPixel(x: number, y: number, hitBodyIndex: number, collisionTime: number, customStyle?: string) {
     const hue = ['0', '0', '240'][hitBodyIndex + 1];
-    let light = 1 / (1 + collisionTime / 100); // Math.pow(10, -timeToFall / 1000);
+    const light = 1 / (1 + collisionTime / 100); // Math.pow(10, -timeToFall / 1000);
     const style = customStyle || ('hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)');
     // const style = 'hsl(' + (2 * timeToFall % 360) + ',100%,' + 50 + '%)';
     this.wallpaperContext.fillStyle = style;
@@ -117,17 +117,17 @@ export class AppComponent implements OnInit {
       if (SHOW_SIMULATION) {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.system.allBodies.forEach(body => {
-          const size = body.mass == 0 ? 4 : 10;
+          const size = body.mass === 0 ? 4 : 10;
           const x = 400 * body.x - size / 2;
           const y = 400 * body.y - size / 2;
           this.context.fillRect(x, y, size, size);
         });
         await new Promise(res => setTimeout(res, ANIMATION_DELAY));
       }
-      if (Object.keys(hitIndexes).length == this.system.smallBodies.length) {
+      if (Object.keys(hitIndexes).length === this.system.smallBodies.length) {
         break;
       }
-    };
+    }
     // console.log('Done', frameTimes.length, 'frames with times:', frameTimes);
     for (let simulationInfoIndex = 0; simulationInfoIndex < simulationsInfo.length; simulationInfoIndex++) {
       const simulationInfo = simulationsInfo[simulationInfoIndex];
@@ -176,7 +176,7 @@ export class AppComponent implements OnInit {
       // const parallelBatches = Array(parallelCount).fill(null).map((_, i) => batches[batchIndex + i]);
       await this.doSimulationsBatch(batch);
       const batchTotalTime = performance.now() - batchStartTime;
-      console.log('Batch', batchIndex, 'of', batchesCount, 'took', batchTotalTime);
+      console.log('Batch', batchIndex + 1, 'of', batchesCount, 'took', batchTotalTime);
     }
     const totalTime = performance.now() - startTime;
     console.log('Finished all', batchesCount, 'batches in', totalTime);
