@@ -27,7 +27,7 @@ export class DynamicSystem {
     private workerCollisionsResolvers: ((collisions: CollisionInfo[]) => void)[] = Array(WORKERS_COUNT);
     private workerWorks: Promise<any>[] = Array(WORKERS_COUNT).fill(null).map((_, i) => Promise.resolve(i));
 
-    constructor(public dt: number = 0.01) {
+    constructor(public dt: number = 0.005) {
         if (workers) {
             this.workers = workers;
             workers.forEach((worker, workerIndex) => {

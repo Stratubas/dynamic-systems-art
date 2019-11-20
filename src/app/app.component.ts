@@ -88,7 +88,7 @@ export class AppComponent implements OnInit {
     const x = simulationInfo.xPixelStart;
     const y = simulationInfo.yPixelStart;
     const hue = ['0', '0', '240'][hitBodyIndex + 1];
-    const light = Math.pow(10, -collisionTime / 10);
+    const light = Math.pow(10, -collisionTime / 10); // TODO: let user redraw with different color scheme
     // For springs, use 100 as denominator
     // const light = 1 / (1 + collisionTime / 5);
     const style = customStyle || ('hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)');
@@ -164,7 +164,8 @@ export class AppComponent implements OnInit {
       if (collisionTime === undefined) {
         this.addWallpaperPixel(simulationInfo, 0, 0, 'black');
       } else {
-        this.addWallpaperPixel(simulationInfo, 0, collisionTime);
+        const targetIndex = hitIndexes[simulationInfoIndex];
+        this.addWallpaperPixel(simulationInfo, targetIndex, collisionTime);
       }
     }
   }
@@ -216,8 +217,10 @@ export class AppComponent implements OnInit {
       const batch = batches[batchIndex];
       // const parallelBatches = Array(parallelCount).fill(null).map((_, i) => batches[batchIndex + i]);
       await this.doSimulationsBatch(batch);
-      const batchTotalTime = performance.now() - batchStartTime;
-      console.log('Batch', batchIndex + 1, 'of', batchesCount, 'took', batchTotalTime);
+      const batchTotalTime = Math.round(performance.now() - batchStartTime);
+      const etaSeconds = Math.round((batchesCount - 1 - batchIndex) * batchTotalTime / 1000);
+      const etaMinutes = (etaSeconds / 60).toFixed(3);
+      console.log('Batch', batchIndex + 1, 'of', batchesCount, 'took', batchTotalTime, 'eta', etaSeconds, 's', `(${etaMinutes} min)`);
     }
     const totalTime = performance.now() - startTime;
     console.log('Finished all', batchesCount, 'batches in', totalTime);
