@@ -1,16 +1,17 @@
 import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 import { DynamicBody } from 'src/classes/dynamic-body';
+import { ACTIVE_SYSTEM } from 'src/physics-helpers/update-accelarations';
 
-const PIXEL_SIZE = 12; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
-const TOTAL_TIME_UNITS = 10;
-const TIME_UNITS_PER_FRAME = 0.04;
+const PIXEL_SIZE = 1; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
+const TOTAL_TIME_UNITS = 1000;
+const TIME_UNITS_PER_FRAME = 10;
 const ANIMATION_DELAY = 30;
 const SHOW_SIMULATION = true;
 const REAL_TIME_PAINTING = true;
 const LOOP_FOREVER = true;
 const ACTIVE_PIXEL_STYLE = 'black';
-const WIDTH = 1920;
+const WIDTH = 231;
 const HEIGHT = 1080;
 // const SYSTEM_X_RANGE = [0.4, 0.6];
 // const SYSTEM_Y_RANGE = [0.325, 0.525];
@@ -104,10 +105,24 @@ export class AppComponent implements OnInit {
     this.system.allBodies.forEach((body, i) => {
       const size = body.mass === 0 ? 4 : 10;
       const style = body.mass ? (['red', 'blue'][i % 2]) : 'black'; // TODO: identify the body properly
-      const x = 400 * body.x - size / 2;
-      const y = 400 * body.y - size / 2;
       this.context.fillStyle = style;
-      this.context.fillRect(x, y, size, size);
+      const x = 400 * body.x - size / 2;
+      if (ACTIVE_SYSTEM === 'klein-gordon') {
+        let y = body.y;
+        y = 0.5 * y * y;
+        y = y + 0.5 * y * y;
+        y = y + 0.5 * body.vy * body.vy;
+        y = -5 * y + 0.5;
+        y = 200 * y - size / 2;
+        this.context.fillRect(x, y, size, size);
+        y = body.y;
+        y = -y + 0.5;
+        y = 150 + 200 * y - size / 2;
+        this.context.fillRect(x, y, size, size);
+      } else {
+        const y = 400 * body.y - size / 2;
+        this.context.fillRect(x, y, size, size);
+      }
     });
   }
 
@@ -191,25 +206,35 @@ export class AppComponent implements OnInit {
       return simulationInfo;
     };
     for (let xPixelStart = 0; xPixelStart < WIDTH; xPixelStart += PIXEL_SIZE) {
+      if (ACTIVE_SYSTEM === 'klein-gordon') {
+        const vy = xPixelStart === (WIDTH + 1) / 2 ? 0.87 : 0;
+        const body = { x: (xPixelStart + PIXEL_SIZE / 2) / WIDTH, y: 0, vx: 0, vy, mass: 0 };
+        const simulationInfo = getSimulationInfo(allSimulations.length, 0, 0, body);
+        allSimulations.push(simulationInfo);
+        continue;
+      }
       for (let yPixelStart = 0; yPixelStart < HEIGHT; yPixelStart += PIXEL_SIZE) {
         const simulationInfo = getSimulationInfo(allSimulations.length, xPixelStart, yPixelStart);
         allSimulations.push(simulationInfo);
       }
     }
+    console.log(allSimulations);
     const batchesCount = Math.ceil(allSimulations.length / BATCH_SIZE);
     console.log('Splitting', allSimulations.length, 'simulations into batches of size', BATCH_SIZE, '->', batchesCount, 'batches.');
     const batches = Array(batchesCount).fill(null).map(() => []);
     for (const simulationInfo of allSimulations) {
       batches[simulationInfo.index % batchesCount].push(simulationInfo);
     }
-    // Adding necessary common bodies in every batch
-    let extraIndex = allSimulations.length;
-    for (const batch of batches) {
-      const massiveBody1: DynamicBody = { x: 0.3, y: 0.5, vx: 0, vy: -0.1, mass: 5 };
-      const massiveBody2: DynamicBody = { x: 0.7, y: 0.5, vx: 0, vy: 0.1, mass: 5 };
-      const massiveBodyInfo1 = getSimulationInfo(extraIndex++, PIXEL_SIZE, PIXEL_SIZE, massiveBody1);
-      const massiveBodyInfo2 = getSimulationInfo(extraIndex++, 3 * PIXEL_SIZE, PIXEL_SIZE, massiveBody2);
-      batch.push(massiveBodyInfo1, massiveBodyInfo2);
+    if (ACTIVE_SYSTEM === 'planetary') {
+      // Adding necessary common bodies in every batch
+      let extraIndex = allSimulations.length;
+      for (const batch of batches) {
+        const massiveBody1: DynamicBody = { x: 0.3, y: 0.5, vx: 0, vy: -0.1, mass: 5 };
+        const massiveBody2: DynamicBody = { x: 0.7, y: 0.5, vx: 0, vy: 0.1, mass: 5 };
+        const massiveBodyInfo1 = getSimulationInfo(extraIndex++, PIXEL_SIZE, PIXEL_SIZE, massiveBody1);
+        const massiveBodyInfo2 = getSimulationInfo(extraIndex++, 3 * PIXEL_SIZE, PIXEL_SIZE, massiveBody2);
+        batch.push(massiveBodyInfo1, massiveBodyInfo2);
+      }
     }
     const startTime = performance.now();
     for (let batchIndex = 0; batchIndex < batchesCount; batchIndex++) {
