@@ -17,30 +17,18 @@ function addForceXY(body1: DynamicBody, body2: DynamicBody, gravitationalConstan
     }
 }
 
-export function addAccelerationsGravity(bodies: DynamicBody[]) {
-    for (let index1 = 0; index1 < bodies.length; index1++) {
-        const massiveBody1 = bodies[index1];
+export function addAccelerationsGravity(massiveBodies: DynamicBody[], smallBodies: DynamicBody[]) {
+    for (let massiveBodyIndex1 = 0; massiveBodyIndex1 < massiveBodies.length; massiveBodyIndex1++) {
+        const massiveBody1 = massiveBodies[massiveBodyIndex1];
         if (massiveBody1.dead) { continue; }
-        for (let index2 = index1 + 1; index2 < bodies.length; index2++) {
-            const massiveBody2 = bodies[index2];
+        for (let massiveBodyIndex2 = massiveBodyIndex1 + 1; massiveBodyIndex2 < massiveBodies.length; massiveBodyIndex2++) {
+            const massiveBody2 = massiveBodies[massiveBodyIndex2];
             if (massiveBody2.dead) { continue; }
             addForceXY(massiveBody1, massiveBody2);
         }
+        for (const smallBody of smallBodies) {
+            if (smallBody.dead) { continue; }
+            addForceXY(massiveBody1, smallBody);
+        }
     }
 }
-
-// export function addAccelerationsGravity(massiveBodies: DynamicBody[], smallBodies: DynamicBody[]) {
-//     for (let massiveBodyIndex1 = 0; massiveBodyIndex1 < massiveBodies.length; massiveBodyIndex1++) {
-//         const massiveBody1 = massiveBodies[massiveBodyIndex1];
-//         if (massiveBody1.dead) { continue; }
-//         for (let massiveBodyIndex2 = massiveBodyIndex1 + 1; massiveBodyIndex2 < massiveBodies.length; massiveBodyIndex2++) {
-//             const massiveBody2 = massiveBodies[massiveBodyIndex2];
-//             if (massiveBody2.dead) { continue; }
-//             addForceXY(massiveBody1, massiveBody2);
-//         }
-//         for (const smallBody of smallBodies) {
-//             if (smallBody.dead) { continue; }
-//             addForceXY(massiveBody1, smallBody);
-//         }
-//     }
-// }

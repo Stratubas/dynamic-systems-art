@@ -16,7 +16,7 @@ addEventListener('message', ({ data }) => {
   const collisionTargets = bodies.filter(body => body.mass);
   for (let step = 0; step < steps; step++) {
     const currentTime = solverData.dynamicSystemTotalTime + step * dt;
-    doPhysicsStep(bodies, dt, currentTime, collisions, collisionTargets);
+    // doPhysicsStep(bodies, dt, currentTime, collisions, collisionTargets); // TODO
   }
   const response: SolverWorkerResponse = { bodies, bodyIndexOffset, collisions };
   postMessage(response);

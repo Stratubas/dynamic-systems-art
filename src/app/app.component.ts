@@ -2,9 +2,9 @@ import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 import { DynamicBody } from 'src/classes/dynamic-body';
 
-const PIXEL_SIZE = 30; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
+const PIXEL_SIZE = 12; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
 const TOTAL_TIME_UNITS = 10;
-const TIME_UNITS_PER_FRAME = 0.01;
+const TIME_UNITS_PER_FRAME = 0.04;
 const ANIMATION_DELAY = 30;
 const SHOW_SIMULATION = true;
 const REAL_TIME_PAINTING = true;

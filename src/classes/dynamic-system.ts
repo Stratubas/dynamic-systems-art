@@ -112,9 +112,14 @@ export class DynamicSystem {
 
     async doTimeStepsInMainThread(steps: number, collisionsToMutate: CollisionInfo[]): Promise<void> {
         const collisionTargets = this.allBodies.filter(body => body.mass);
+        const bodies = {
+            all: this.allBodies,
+            massive: this.massiveBodies,
+            small: this.smallBodies,
+        };
         for (let step = 0; step < steps; step++) {
             const totalTime = (this.totalSteps + step) * this.dt;
-            doPhysicsStep(this.allBodies, this.dt, totalTime, collisionsToMutate, collisionTargets);
+            doPhysicsStep(bodies, this.dt, totalTime, collisionsToMutate, collisionTargets);
         }
     }
 

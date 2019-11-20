@@ -5,11 +5,12 @@ import { updatePositions } from './update-positions';
 import { updateVelocities } from './update-velocities';
 
 export function doPhysicsStep(
-    bodies: DynamicBody[], dt: number, dynamicSystemTotalTime: number,
+    bodies: { all: DynamicBody[]; massive: DynamicBody[]; small: DynamicBody[]; },
+    dt: number, dynamicSystemTotalTime: number,
     collisions: CollisionInfo[], collisionTargets: DynamicBody[],
 ) {
-    updatePositions(bodies, dt);
-    detectCollisions(bodies, collisionTargets, dynamicSystemTotalTime, collisions);
-    updateAccelerations(bodies);
-    updateVelocities(bodies, dt);
+    updatePositions(bodies.all, dt);
+    detectCollisions(bodies.all, collisionTargets, dynamicSystemTotalTime, collisions);
+    updateAccelerations(bodies.all, bodies.massive, bodies.small);
+    updateVelocities(bodies.all, dt);
 }
