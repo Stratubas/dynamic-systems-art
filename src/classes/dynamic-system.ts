@@ -5,7 +5,7 @@ import { SolverWorkerData } from './solver-worker-data';
 import { SolverWorkerResponse } from './solver-worker-response';
 import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
 
-const WORKERS_COUNT = 3; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
+const WORKERS_COUNT = 0; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
 let workers: Worker[];
 if (WORKERS_COUNT && typeof Worker !== 'undefined') {
     console.log('Working with', WORKERS_COUNT, 'worker(s).');
@@ -27,7 +27,7 @@ export class DynamicSystem {
     private workerCollisionsResolvers: ((collisions: CollisionInfo[]) => void)[] = Array(WORKERS_COUNT);
     private workerWorks: Promise<any>[] = Array(WORKERS_COUNT).fill(null).map((_, i) => Promise.resolve(i));
 
-    constructor(public dt: number = 0.1) {
+    constructor(public dt: number = 0.01) {
         if (workers) {
             this.workers = workers;
             workers.forEach((worker, workerIndex) => {
@@ -45,7 +45,7 @@ export class DynamicSystem {
         for (let bodyIndex = 0; bodyIndex < newBodies.length; bodyIndex++) {
             const newBody = newBodies[bodyIndex];
             const thisBodyIndex = bodyIndex + bodyIndexOffset;
-            const thisBody = this.smallBodies[thisBodyIndex];
+            const thisBody = this.allBodies[thisBodyIndex];
             thisBody.x = newBody.x;
             thisBody.y = newBody.y;
             thisBody.vx = newBody.vx;
@@ -66,7 +66,7 @@ export class DynamicSystem {
         this.allBodies = [];
     }
 
-    private addBody(newBody: DynamicBody) {
+    addBody(newBody: DynamicBody) {
         (newBody.mass ? this.massiveBodies : this.smallBodies).push(newBody);
         this.allBodies.push(newBody);
     }
@@ -110,19 +110,22 @@ export class DynamicSystem {
         this.addBody(newBody);
     }
 
-    doTimeStepsInMainThread(steps: number, collisionsToMutate: CollisionInfo[]): void {
+    async doTimeStepsInMainThread(steps: number, collisionsToMutate: CollisionInfo[]): Promise<void> {
+        const collisionTargets = this.allBodies.filter(body => body.mass);
         for (let step = 0; step < steps; step++) {
             const totalTime = (this.totalSteps + step) * this.dt;
-            doPhysicsStep(this.smallBodies, this.dt, totalTime, collisionsToMutate);
+            doPhysicsStep(this.allBodies, this.dt, totalTime, collisionsToMutate, collisionTargets);
         }
     }
 
     async doTimeStepsInWorkers(steps: number, collisionsToMutate: CollisionInfo[]): Promise<void> {
-        const bodiesPerBodyBatch = Math.ceil(0.125 * this.smallBodies.length / this.workers.length);
-        const bodyBatchesCount = Math.ceil(this.smallBodies.length / bodiesPerBodyBatch);
+        const dynamicBodies = this.allBodies;
+        const targetTasksPerWorker = 1; // TODO: fix gravity
+        const bodiesPerBodyBatch = Math.ceil(targetTasksPerWorker * dynamicBodies.length / this.workers.length);
+        const bodyBatchesCount = Math.ceil(dynamicBodies.length / bodiesPerBodyBatch);
         const bodyBatches = Array(bodyBatchesCount).fill(null).map(() => []);
-        for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
-            const body = this.smallBodies[bodyIndex];
+        for (let bodyIndex = 0; bodyIndex < dynamicBodies.length; bodyIndex++) {
+            const body = dynamicBodies[bodyIndex];
             const bodyBatchIndex = Math.floor(bodyIndex / bodiesPerBodyBatch);
             bodyBatches[bodyBatchIndex].push(body);
         }

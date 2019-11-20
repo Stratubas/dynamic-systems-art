@@ -6,7 +6,7 @@ import { updateVelocities } from './update-velocities';
 
 export function doPhysicsStep(
     bodies: DynamicBody[], dt: number, dynamicSystemTotalTime: number,
-    collisions: CollisionInfo[] = [], collisionTargets: DynamicBody[] = [SPRING_ANCHOR]
+    collisions: CollisionInfo[], collisionTargets: DynamicBody[],
 ) {
     updatePositions(bodies, dt);
     detectCollisions(bodies, collisionTargets, dynamicSystemTotalTime, collisions);
