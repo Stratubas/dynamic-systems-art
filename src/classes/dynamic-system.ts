@@ -5,18 +5,14 @@ import { SolverWorkerData } from './solver-worker-data';
 import { SolverWorkerResponse } from './solver-worker-response';
 import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
 
-const WORKERS_COUNT = 4; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
+const WORKERS_COUNT = 3; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
 let workers: Worker[];
 if (WORKERS_COUNT && typeof Worker !== 'undefined') {
     console.log('Working with', WORKERS_COUNT, 'worker(s).');
-    try {
-        workers = Array(WORKERS_COUNT).fill(null).map(() => new Worker('../workers/solver.worker', { type: 'module' }));
-    } catch (error) {
-        console.log(error)
-    }
+    workers = Array(WORKERS_COUNT).fill(null).map(() => new Worker('../workers/solver.worker', { type: 'module' }));
 } else if (WORKERS_COUNT) {
     console.error('Workers not available!');
-    alert('Your browser is not compatible :(');
+    alert('Your browser is not compatible with web workers.\n\nFalling back to doing calculations in the UI thread :(');
 } else {
     console.log('Working without workers.');
 }
@@ -114,56 +110,64 @@ export class DynamicSystem {
         this.addBody(newBody);
     }
 
-    async doTimeSteps(timeUnits: number): Promise<CollisionInfo[]> { // TODO: make sure tasks work correctly
+    doTimeStepsInMainThread(steps: number, collisionsToMutate: CollisionInfo[]): void {
+        for (let step = 0; step < steps; step++) {
+            const totalTime = (this.totalSteps + step) * this.dt;
+            doPhysicsStep(this.smallBodies, this.dt, totalTime, collisionsToMutate);
+        }
+    }
+
+    async doTimeStepsInWorkers(steps: number, collisionsToMutate: CollisionInfo[]): Promise<void> {
+        const bodiesPerBodyBatch = Math.ceil(0.125 * this.smallBodies.length / this.workers.length);
+        const bodyBatchesCount = Math.ceil(this.smallBodies.length / bodiesPerBodyBatch);
+        const bodyBatches = Array(bodyBatchesCount).fill(null).map(() => []);
+        for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
+            const body = this.smallBodies[bodyIndex];
+            const bodyBatchIndex = Math.floor(bodyIndex / bodiesPerBodyBatch);
+            bodyBatches[bodyBatchIndex].push(body);
+        }
+        const tasks: SolverWorkerData[] = bodyBatches.map((bodies, taskIndex) => {
+            const data: SolverWorkerData = {
+                bodies,
+                bodyIndexOffset: taskIndex * bodiesPerBodyBatch,
+                dt: this.dt,
+                dynamicSystemTotalTime: this.totalSteps * this.dt,
+                steps,
+                collisionTargets: [SPRING_ANCHOR],
+            };
+            return data;
+        });
+        // console.log('Split the simulation of', this.smallBodies.length, 'bodies into', tasks.length, 'tasks.');
+        const tasksDoneByWorker = this.workers.map(() => []);
+        const collisionsPromises: Promise<CollisionInfo[]>[] = [];
+        for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
+            const task = tasks[taskIndex];
+            const nextFreeWorkerIndex = await Promise.race(this.workerWorks);
+            tasksDoneByWorker[nextFreeWorkerIndex].push(taskIndex);
+            const nextFreeWorker = this.workers[nextFreeWorkerIndex];
+            const nextCollisionsPromise = new Promise<CollisionInfo[]>(resolve => {
+                this.workerCollisionsResolvers[nextFreeWorkerIndex] = resolve;
+            });
+            collisionsPromises.push(nextCollisionsPromise);
+            this.workerWorks[nextFreeWorkerIndex] = nextCollisionsPromise.then(() => nextFreeWorkerIndex);
+            nextFreeWorker.postMessage(task);
+        }
+        // console.log(tasksDoneByWorker);
+        const nestedCollisions = await Promise.all(collisionsPromises);
+        for (const extraCollisions of nestedCollisions) {
+            for (const collision of extraCollisions) {
+                collisionsToMutate.push(collision);
+            }
+        }
+    }
+
+    async doTimeSteps(timeUnits: number): Promise<CollisionInfo[]> {
         const steps = Math.round(timeUnits / this.dt);
         const collisions: CollisionInfo[] = [];
         if (this.workers) {
-            const bodiesPerBodyBatch = Math.ceil(0.125 * this.smallBodies.length / this.workers.length); // for even split
-            const bodyBatchesCount = Math.ceil(this.smallBodies.length / bodiesPerBodyBatch);
-            const bodyBatches = Array(bodyBatchesCount).fill(null).map(() => []);
-            for (let bodyIndex = 0; bodyIndex < this.smallBodies.length; bodyIndex++) {
-                const body = this.smallBodies[bodyIndex];
-                const bodyBatchIndex = Math.floor(bodyIndex / bodiesPerBodyBatch);
-                bodyBatches[bodyBatchIndex].push(body);
-            }
-            const tasks: SolverWorkerData[] = bodyBatches.map((bodies, taskIndex) => {
-                const data: SolverWorkerData = {
-                    bodies,
-                    bodyIndexOffset: taskIndex * bodiesPerBodyBatch,
-                    dt: this.dt,
-                    dynamicSystemTotalTime: this.totalSteps * this.dt,
-                    steps,
-                    collisionTargets: [SPRING_ANCHOR],
-                };
-                return data;
-            });
-            // console.log('Split the simulation of', this.smallBodies.length, 'bodies into', tasks.length, 'tasks.');
-            // const tasksDoneByWorker = this.workers.map(() => []);
-            const collisionsPromises: Promise<CollisionInfo[]>[] = [];
-            for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
-                const task = tasks[taskIndex];
-                const nextFreeWorkerIndex = await Promise.race(this.workerWorks);
-                // tasksDoneByWorker[nextFreeWorkerIndex].push(taskIndex);
-                const nextFreeWorker = this.workers[nextFreeWorkerIndex];
-                const nextCollisionsPromise = new Promise<CollisionInfo[]>(resolve => {
-                    this.workerCollisionsResolvers[nextFreeWorkerIndex] = resolve;
-                });
-                collisionsPromises.push(nextCollisionsPromise);
-                this.workerWorks[nextFreeWorkerIndex] = nextCollisionsPromise.then(() => nextFreeWorkerIndex);
-                nextFreeWorker.postMessage(task);
-            }
-            const nestedCollisions = await Promise.all(collisionsPromises);
-            for (const extraCollisions of nestedCollisions) {
-                for (const collision of extraCollisions) {
-                    collisions.push(collision);
-                }
-            }
-            // console.log('Tasks of each worker:', tasksDoneByWorker);
+            await this.doTimeStepsInWorkers(steps, collisions);
         } else {
-            for (let step = 0; step < steps; step++) {
-                const totalTime = (this.totalSteps + step) * this.dt;
-                doPhysicsStep(this.smallBodies, this.dt, totalTime, collisions);
-            }
+            this.doTimeStepsInMainThread(steps, collisions);
         }
         this.totalSteps += steps;
         return collisions;
