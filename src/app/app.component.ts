@@ -6,7 +6,7 @@ const PIXEL_SIZE = 12; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 1
 const TOTAL_TIME_UNITS = 10;
 const TIME_UNITS_PER_FRAME = 0.04;
 const ANIMATION_DELAY = 30;
-const SHOW_SIMULATION = true;
+const SHOW_SIMULATION = false;
 const REAL_TIME_PAINTING = true;
 const LOOP_FOREVER = true;
 const ACTIVE_PIXEL_STYLE = 'black';
@@ -15,9 +15,9 @@ const HEIGHT = 1080;
 // const SYSTEM_X_RANGE = [0.4, 0.6];
 // const SYSTEM_Y_RANGE = [0.325, 0.525];
 // For spring system, use x = 0.5, y = 0.425, yHalfSize = 0.1
-const SYSTEM_X_CENTER = 0.5;
-const SYSTEM_Y_CENTER = 0.5;
-const SYSTEM_Y_HALF_SIZE = 0.5;
+const SYSTEM_X_CENTER = 0.485;
+const SYSTEM_Y_CENTER = 0.36;
+const SYSTEM_Y_HALF_SIZE = 0.00025;
 const SYSTEM_Y_RANGE = [SYSTEM_Y_CENTER - SYSTEM_Y_HALF_SIZE, SYSTEM_Y_CENTER + SYSTEM_Y_HALF_SIZE];
 const SYSTEM_X_HALF_SIZE = SYSTEM_Y_HALF_SIZE * WIDTH / HEIGHT;
 const SYSTEM_X_RANGE = [SYSTEM_X_CENTER - SYSTEM_X_HALF_SIZE, SYSTEM_X_CENTER + SYSTEM_X_HALF_SIZE];
@@ -88,7 +88,7 @@ export class AppComponent implements OnInit {
     const x = simulationInfo.xPixelStart;
     const y = simulationInfo.yPixelStart;
     const hue = ['0', '0', '240'][hitBodyIndex + 1];
-    const light = Math.pow(10, -collisionTime / 10);
+    const light = Math.pow(10, -collisionTime / 1000);
     // For springs, use 100 as denominator
     // const light = 1 / (1 + collisionTime / 5);
     const style = customStyle || ('hsl(' + hue + ',100%,' + 50 * Math.max(light, 0) + '%)');
@@ -113,6 +113,7 @@ export class AppComponent implements OnInit {
 
   async doSimulationsBatch(simulationsInfo: SimulationInfo[]) {
     this.resetSystem();
+    let fallenCount = 0;
     for (const simulationInfo of simulationsInfo) {
       this.system.addBody(simulationInfo.body);
       this.addWallpaperPixel(simulationInfo, 0, 0, ACTIVE_PIXEL_STYLE);
@@ -148,6 +149,10 @@ export class AppComponent implements OnInit {
           const simulationInfo = simulationsInfo[batchBodyIndex];
           this.addWallpaperPixel(simulationInfo, hitIndexes[batchBodyIndex], hitTimes[batchBodyIndex]);
         }
+      }
+      if (collisions.length) {
+        fallenCount += collisions.length;
+        console.log(fallenCount, '/', simulationsInfo.length);
       }
       if (SHOW_SIMULATION) {
         await this.drawAnimationFrame();
