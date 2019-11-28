@@ -5,15 +5,15 @@ import { ACTIVE_SYSTEM } from 'src/physics-helpers/update-accelarations';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 
 const PIXEL_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 1 : 7; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
-const TOTAL_TIME_UNITS = 500;
-const TIME_UNITS_PER_FRAME = 1;
-const ANIMATION_DELAY = 30;
+const TOTAL_TIME_UNITS = 1000;
+const TIME_UNITS_PER_FRAME = 1.25;
+const ANIMATION_DELAY = 0;
 const SHOW_SIMULATION = true;
 const REAL_TIME_PAINTING = true;
 const LOOP_FOREVER = false;
 const ACTIVE_PIXEL_STYLE = 'black';
-const WIDTH = 231;
-const HEIGHT = 231;
+const WIDTH = 101;
+const HEIGHT = 101;
 // const SYSTEM_X_RANGE = [0.4, 0.6];
 // const SYSTEM_Y_RANGE = [0.325, 0.525];
 // For spring system, use x = 0.5, y = 0.425, yHalfSize = 0.1
@@ -103,20 +103,21 @@ export class AppComponent implements OnInit {
     const data = myImageData.data;
     interface RgbObject { r: number; g: number; b: number; };
     const colorFunction: (value: number) => RgbObject = (value) => {
-      const maxValue = 0.1;
+      const maxValue = 0.3;
+      const transformedValue = value; // Math.sqrt(value);
       const checkpoints = [
-        { at: 0, rgb: { r: 0, g: 0, b: 0 } },
-        { at: 0.5 * maxValue, rgb: { r: 255, g: 0, b: 0 } },
-        { at: maxValue, rgb: { r: 255, g: 255, b: 255 } },
+        { at: maxValue * 0 / 20, rgb: { r: 0, g: 0, b: 0 } },
+        { at: maxValue * 1 / 20, rgb: { r: 255, g: 0, b: 0 } },
+        { at: maxValue * 2 / 20, rgb: { r: 255, g: 255, b: 255 } },
       ];
-      const checkpointIndex = checkpoints.findIndex(checkpoint => checkpoint.at >= value);
+      const checkpointIndex = checkpoints.findIndex(checkpoint => checkpoint.at >= transformedValue);
       if (checkpointIndex === 0) { return checkpoints[0].rgb; }
       if (checkpointIndex === -1) { return checkpoints[checkpoints.length - 1].rgb; }
       const checkpoint1 = checkpoints[checkpointIndex - 1];
       const checkpoint2 = checkpoints[checkpointIndex];
       const maxDistance = checkpoint2.at - checkpoint1.at;
-      const distance1 = value - checkpoint1.at;
-      const distance2 = checkpoint2.at - value;
+      const distance1 = transformedValue - checkpoint1.at;
+      const distance2 = checkpoint2.at - transformedValue;
       const ratio1 = distance2 / maxDistance;
       const ratio2 = distance1 / maxDistance;
       const result: RgbObject = {
@@ -282,7 +283,7 @@ export class AppComponent implements OnInit {
     };
     for (let xPixelStart = 0; xPixelStart < WIDTH; xPixelStart += PIXEL_SIZE) {
       if (ACTIVE_SYSTEM === 'klein-gordon') {
-        const vy = xPixelStart === (WIDTH + 1) / 2 ? 0.87 : 0;
+        const vy = xPixelStart === (WIDTH + 1) / 2 ? 0.85 : 0;
         const body = { x: (xPixelStart + PIXEL_SIZE / 2) / WIDTH, y: 0, vx: 0, vy, mass: 0 };
         const simulationInfo = getSimulationInfo(allSimulations.length, 0, 0, body);
         allSimulations.push(simulationInfo);
