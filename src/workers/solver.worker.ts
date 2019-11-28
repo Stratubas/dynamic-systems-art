@@ -13,10 +13,11 @@ addEventListener('message', ({ data }) => {
   const dt: number = solverData.dt;
   const steps: number = solverData.steps;
   const collisions: CollisionInfo[] = [];
-  const collisionTargets = bodies.filter(body => body.mass);
+  const massiveBodies = bodies.filter(body => body.mass);
+  const smallBodies = bodies.filter(body => !body.mass);
   for (let step = 0; step < steps; step++) {
     const currentTime = solverData.dynamicSystemTotalTime + step * dt;
-    // doPhysicsStep(bodies, dt, currentTime, collisions, collisionTargets); // TODO
+    doPhysicsStep({ all: bodies, massive: massiveBodies, small: smallBodies }, dt, currentTime, collisions, massiveBodies);
   }
   const response: SolverWorkerResponse = { bodies, bodyIndexOffset, collisions };
   postMessage(response);

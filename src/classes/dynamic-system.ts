@@ -5,7 +5,7 @@ import { SolverWorkerData } from './solver-worker-data';
 import { SolverWorkerResponse } from './solver-worker-response';
 import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
 
-const WORKERS_COUNT = 0; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
+const WORKERS_COUNT = 1; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
 let workers: Worker[];
 if (WORKERS_COUNT && typeof Worker !== 'undefined') {
     console.log('Working with', WORKERS_COUNT, 'worker(s).');
