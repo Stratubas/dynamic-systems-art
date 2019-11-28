@@ -22,10 +22,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   public initialMomentum = DEFAULT_INITIAL_CENTER_MOMENTUM;
   public arrayPlotHeight = 3 * this.oscillatorCount; // TODO: use adaptive scale for more oscillators
   public arrayPlotLength = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
-  public currentTimeUnits = 0;
-
-  private totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
+  public totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
   private arrayPlotArray: number[][] = Array(this.arrayPlotLength);
+
+  public currentTimeUnits = 0;
 
   private system: DynamicSystem;
 
@@ -46,7 +46,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   private isDestroyed = false;
 
   constructor() {
-    this.system = new DynamicSystem();
+    this.system = new DynamicSystem('klein-gordon');
   }
 
   ngOnInit() {

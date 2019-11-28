@@ -3,6 +3,7 @@ import { CollisionInfo, detectCollisions } from './detect-collisions';
 import { updateAccelerations } from './update-accelarations';
 import { updatePositions } from './update-positions';
 import { updateVelocities } from './update-velocities';
+import { SystemType } from 'src/app/models/system-type';
 
 interface SubstepInfo {
     dt: number;
@@ -40,16 +41,16 @@ function getSubsteps(dt: number, integrationOrder: 1 | 2 | 4): SubstepInfo[] {
 export function doPhysicsStep(
     bodies: { all: DynamicBody[]; massive: DynamicBody[]; small: DynamicBody[]; },
     dt: number, dynamicSystemTotalTime: number,
-    collisions: CollisionInfo[], collisionTargets: DynamicBody[],
+    collisions: CollisionInfo[], collisionTargets: DynamicBody[], activeSystem: SystemType,
 ) {
-    const integrationOrder = 4;
+    const integrationOrder = activeSystem === 'planetary' ? 1 : 4;
     const substeps = getSubsteps(dt, integrationOrder);
     for (const substepInfo of substeps) {
         if (substepInfo.type === 'x') {
             updatePositions(bodies.all, substepInfo.dt);
         }
         else if (substepInfo.type === 'p') {
-            updateAccelerations(bodies.all, bodies.massive, bodies.small);
+            updateAccelerations(bodies.all, bodies.massive, bodies.small, activeSystem);
             updateVelocities(bodies.all, substepInfo.dt);
         }
     }

@@ -4,20 +4,19 @@ import { addAccelerationsSpring } from './add-accelerations-spring';
 import { addAccelerationsGeneric } from './add-accelerations-generic';
 import { addAccelerationsGravity } from './add-accelerations-gravity';
 import { addAccelerationsKleinGordon } from './accelerations/klein-gordon-chain';
+import { SystemType } from 'src/app/models/system-type';
 
 export const SPRING_ANCHOR = { x: 0.5, y: 0.5 };
 const GRAVITY_G = 0.005;
 
-export const ACTIVE_SYSTEM: 'spring' | 'planetary' | 'klein-gordon' = 'klein-gordon';
-
-export function updateAccelerations(bodies: DynamicBody[], massiveBodies: DynamicBody[], smallBodies: DynamicBody[]) {
+export function updateAccelerations(bodies: DynamicBody[], massiveBodies: DynamicBody[], smallBodies: DynamicBody[], activeSystem: SystemType) {
     resetAccelerations(bodies);
-    if (ACTIVE_SYSTEM === 'spring') {
+    if (activeSystem === 'spring') {
         addAccelerationsSpring(bodies, SPRING_ANCHOR);
         addAccelerationsGeneric(bodies, GRAVITY_G);
-    } else if (ACTIVE_SYSTEM === 'planetary') {
+    } else if (activeSystem === 'planetary') {
         addAccelerationsGravity(massiveBodies, smallBodies);
-    } else if (ACTIVE_SYSTEM === 'klein-gordon') {
+    } else if (activeSystem === 'klein-gordon') {
         addAccelerationsKleinGordon(bodies);
     } else {
         throw new Error(`Unknown system type - can't add accelerations.`);

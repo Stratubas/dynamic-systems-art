@@ -4,8 +4,9 @@ import { CollisionInfo } from 'src/physics-helpers/detect-collisions';
 import { SolverWorkerData } from './solver-worker-data';
 import { SolverWorkerResponse } from './solver-worker-response';
 import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
+import { SystemType } from 'src/app/models/system-type';
 
-const WORKERS_COUNT = 1; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
+const WORKERS_COUNT = 0; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
 let workersToMake: number = 0;
 if (WORKERS_COUNT && typeof Worker !== 'undefined') {
     console.log('Working with', WORKERS_COUNT, 'worker(s).');
@@ -27,7 +28,7 @@ export class DynamicSystem {
     private workerCollisionsResolvers: ((collisions: CollisionInfo[]) => void)[] = Array(WORKERS_COUNT);
     private workerWorks: Promise<any>[] = Array(WORKERS_COUNT).fill(null).map((_, i) => Promise.resolve(i));
 
-    constructor(public dt: number = 0.02) {
+    constructor(private activeSystem: SystemType, public dt: number = 0.02) {
         if (workersToMake) { this.workers = []; }
         for (let workerIndex = 0; workerIndex < workersToMake; workerIndex++) {
             const newWorker = new Worker('../workers/solver.worker', { type: 'module' });
@@ -125,7 +126,7 @@ export class DynamicSystem {
         };
         for (let step = 0; step < steps; step++) {
             const totalTime = (this.totalSteps + step) * this.dt;
-            doPhysicsStep(bodies, this.dt, totalTime, collisionsToMutate, collisionTargets);
+            doPhysicsStep(bodies, this.dt, totalTime, collisionsToMutate, collisionTargets, this.activeSystem);
         }
     }
 
@@ -145,6 +146,7 @@ export class DynamicSystem {
                 bodies,
                 bodyIndexOffset: taskIndex * bodiesPerBodyBatch,
                 dt: this.dt,
+                activeSystem: this.activeSystem,
                 dynamicSystemTotalTime: this.totalSteps * this.dt,
                 steps,
                 collisionTargets: [SPRING_ANCHOR],
