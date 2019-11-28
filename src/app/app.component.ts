@@ -96,23 +96,46 @@ export class AppComponent implements OnInit {
     if (nextIndex === -1) { return; };
     this.arrayPlotArray[nextIndex] = newPlotColumn;
     const array = this.arrayPlotArray;
-    const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
+    // const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
     const width = this.arrayPlotCanvas.width;
     const height = this.arrayPlotCanvas.height;
     const myImageData = this.arrayPlotContext.createImageData(width, height);
     const data = myImageData.data;
+    interface RgbObject { r: number; g: number; b: number; };
+    const colorFunction: (value: number) => RgbObject = (value) => {
+      const maxValue = 0.1;
+      const checkpoints = [
+        { at: 0, rgb: { r: 0, g: 0, b: 0 } },
+        { at: 0.5 * maxValue, rgb: { r: 255, g: 0, b: 0 } },
+        { at: maxValue, rgb: { r: 255, g: 255, b: 255 } },
+      ];
+      const checkpointIndex = checkpoints.findIndex(checkpoint => checkpoint.at >= value);
+      if (checkpointIndex === 0) { return checkpoints[0].rgb; }
+      if (checkpointIndex === -1) { return checkpoints[checkpoints.length - 1].rgb; }
+      const checkpoint1 = checkpoints[checkpointIndex - 1];
+      const checkpoint2 = checkpoints[checkpointIndex];
+      const maxDistance = checkpoint2.at - checkpoint1.at;
+      const distance1 = value - checkpoint1.at;
+      const distance2 = checkpoint2.at - value;
+      const ratio1 = distance2 / maxDistance;
+      const ratio2 = distance1 / maxDistance;
+      const result: RgbObject = {
+        r: Math.round(checkpoint1.rgb.r * ratio1 + checkpoint2.rgb.r * ratio2),
+        g: Math.round(checkpoint1.rgb.g * ratio1 + checkpoint2.rgb.g * ratio2),
+        b: Math.round(checkpoint1.rgb.b * ratio1 + checkpoint2.rgb.b * ratio2),
+      }
+      return result;
+    }
     for (let plotColumnIndex = 0; plotColumnIndex < width; plotColumnIndex++) {
       const arrayRow = array[plotColumnIndex]; // drawing rows into columns and columns into rows
       if (arrayRow === undefined) { continue; }
       for (let plotRowIndex = 0; plotRowIndex < height; plotRowIndex++) {
         const arrayColumn = arrayRow[plotRowIndex];
         if (arrayColumn === undefined) { continue; }
-        const intValue = Math.round(255 * arrayColumn * scale);
+        // const intValue = Math.round(255 * arrayColumn * scale);
+        const color: RgbObject = colorFunction(arrayColumn);
         const dataIndex = 4 * (plotRowIndex * width + plotColumnIndex);
-        // TODO: custom colorFunction
-        data[dataIndex + 0] = intValue; // red
-        data[dataIndex + 1] = 0; // green
-        data[dataIndex + 2] = 0; // blue
+        ({ r: data[dataIndex + 0], g: data[dataIndex + 1], b: data[dataIndex + 2] } = color);
         data[dataIndex + 3] = 255; // alpha
       }
     }
