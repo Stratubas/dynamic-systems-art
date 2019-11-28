@@ -52,6 +52,8 @@ export class AppComponent implements OnInit {
   private previewContext: CanvasRenderingContext2D;
   private wallpaperContext: CanvasRenderingContext2D;
   private arrayPlotContext: CanvasRenderingContext2D;
+  private arrayPlotLength = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
+  private arrayPlotArray: number[][] = Array(this.arrayPlotLength);
 
   private readyToDraw: Promise<void> = Promise.resolve();
 
@@ -89,7 +91,11 @@ export class AppComponent implements OnInit {
     });
   }
 
-  drawArrayPlot(array: number[][]) {
+  addArrayPlotColumn(newPlotColumn: number[]) {
+    const nextIndex = this.arrayPlotArray.findIndex(subarray => !subarray);
+    if (nextIndex === -1) { return; };
+    this.arrayPlotArray[nextIndex] = newPlotColumn;
+    const array = this.arrayPlotArray;
     const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
     const width = this.arrayPlotCanvas.width;
     const height = this.arrayPlotCanvas.height;
@@ -110,7 +116,7 @@ export class AppComponent implements OnInit {
         data[dataIndex + 3] = 255; // alpha
       }
     }
-    console.log(scale, myImageData);
+    // console.log(scale, myImageData);
     this.arrayPlotContext.putImageData(myImageData, 0, 0);
   }
 
@@ -136,7 +142,7 @@ export class AppComponent implements OnInit {
     this.previewContext.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
     if (ACTIVE_SYSTEM === 'klein-gordon') {
       var energies = getEnergies(this.system.allBodies, 0.1);
-      this.drawArrayPlot(Array(100).fill(energies)); // TODO: don't repeat the same values - use the older ones
+      this.addArrayPlotColumn(energies);
       const totalEnergy = energies.reduce((sum, nrg) => sum + nrg);
       const global = window as any;
       if (!global.startEnergy) {
