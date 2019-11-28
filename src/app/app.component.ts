@@ -4,7 +4,7 @@ import { DynamicBody } from 'src/classes/dynamic-body';
 import { ACTIVE_SYSTEM } from 'src/physics-helpers/update-accelarations';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 
-const PIXEL_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 1 : 21; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
+const PIXEL_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 1 : 7; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
 const TOTAL_TIME_UNITS = 50;
 const TIME_UNITS_PER_FRAME = 0.1;
 const ANIMATION_DELAY = 30;
@@ -24,7 +24,7 @@ const SYSTEM_Y_RANGE = [SYSTEM_Y_CENTER - SYSTEM_Y_HALF_SIZE, SYSTEM_Y_CENTER + 
 const SYSTEM_X_HALF_SIZE = SYSTEM_Y_HALF_SIZE * WIDTH / HEIGHT;
 const SYSTEM_X_RANGE = [SYSTEM_X_CENTER - SYSTEM_X_HALF_SIZE, SYSTEM_X_CENTER + SYSTEM_X_HALF_SIZE];
 // const SUN_MASS = 200;
-const BATCH_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 9999999 : 7 * WIDTH / PIXEL_SIZE;
+const BATCH_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 9999999 : 21 * WIDTH / PIXEL_SIZE;
 // const ANIMATION_SCALE = 1 / 4;
 
 // TODO: refactor this to contain more info and have a better name and a separate file
