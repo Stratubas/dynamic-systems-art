@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
@@ -16,7 +16,7 @@ const DEFAULT_INITIAL_CENTER_MOMENTUM = 0.875;
   templateUrl: './klein-gordon-chain.component.html',
   styleUrls: ['./klein-gordon-chain.component.scss']
 })
-export class KleinGordonChainComponent implements OnInit {
+export class KleinGordonChainComponent implements OnInit, OnDestroy {
 
   public oscillatorCount = DEFAULT_OSCILLATOR_COUNT;
   public initialMomentum = DEFAULT_INITIAL_CENTER_MOMENTUM;
@@ -43,14 +43,22 @@ export class KleinGordonChainComponent implements OnInit {
   private arrayPlotContext: CanvasRenderingContext2D;
 
   private readyToDraw: Promise<void> = Promise.resolve();
+  private isDestroyed = false;
 
   constructor() {
     this.system = new DynamicSystem();
   }
 
   ngOnInit() {
+    console.log('Klein-Gordon chain component is being initialized.');
     this.initCanvases();
     this.runSimulation();
+  }
+
+  ngOnDestroy() {
+    console.log('Klein-Gordon chain component is being destroyed.');
+    this.system.shutdown();
+    this.isDestroyed = true;
   }
 
   initCanvases() {
@@ -175,7 +183,7 @@ export class KleinGordonChainComponent implements OnInit {
     const frameTimesBufferSize = 100;
     const frameTimes = Array(frameTimesBufferSize);
     let frameTimesSum = 0;
-    for (let frameIndex = 0; frameIndex < this.totalFrames;) {
+    for (let frameIndex = 0; frameIndex < this.totalFrames && !this.isDestroyed;) {
       await this.system.doTimeSteps(TIME_UNITS_PER_FRAME);
       await this.drawFrame(++frameIndex * TIME_UNITS_PER_FRAME);
       const ms = Math.round(-perfTime + (perfTime = performance.now()));
@@ -192,7 +200,8 @@ export class KleinGordonChainComponent implements OnInit {
         frameTimesSum = 0;
       }
     }
-    console.log('Simulation was completed in', Math.round(performance.now() - startTime), 'ms.');
+    const status = this.isDestroyed ? 'aborted' : 'completed';
+    console.log('Simulation was', status, 'in', Math.round(performance.now() - startTime), 'ms.');
   }
 
 }

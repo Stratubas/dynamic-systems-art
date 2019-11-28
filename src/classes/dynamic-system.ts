@@ -6,15 +6,15 @@ import { SolverWorkerResponse } from './solver-worker-response';
 import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
 
 const WORKERS_COUNT = 1; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
-let workers: Worker[];
+let workersToMake: number = 0;
 if (WORKERS_COUNT && typeof Worker !== 'undefined') {
     console.log('Working with', WORKERS_COUNT, 'worker(s).');
-    workers = Array(WORKERS_COUNT).fill(null).map(() => new Worker('../workers/solver.worker', { type: 'module' }));
+    workersToMake = WORKERS_COUNT;
 } else if (WORKERS_COUNT) {
     console.error('Workers not available!');
     alert('Your browser is not compatible with web workers.\n\nFalling back to doing calculations in the UI thread :(');
 } else {
-    console.log('Working without workers.');
+    console.log('Working without workers.'); // no pun intended
 }
 
 export class DynamicSystem {
@@ -28,14 +28,20 @@ export class DynamicSystem {
     private workerWorks: Promise<any>[] = Array(WORKERS_COUNT).fill(null).map((_, i) => Promise.resolve(i));
 
     constructor(public dt: number = 0.02) {
-        if (workers) {
-            this.workers = workers;
-            workers.forEach((worker, workerIndex) => {
-                worker.onmessage = ({ data }) => {
-                    const response: SolverWorkerResponse = data;
-                    this.processWorkerResponse(response, workerIndex);
-                };
-            });
+        if (workersToMake) { this.workers = []; }
+        for (let workerIndex = 0; workerIndex < workersToMake; workerIndex++) {
+            const newWorker = new Worker('../workers/solver.worker', { type: 'module' });
+            newWorker.onmessage = ({ data }) => {
+                const response: SolverWorkerResponse = data;
+                this.processWorkerResponse(response, workerIndex);
+            };
+            this.workers.push(newWorker);
+        }
+    }
+
+    shutdown() {
+        for (const worker of this.workers || []) {
+            worker.terminate();
         }
     }
 
