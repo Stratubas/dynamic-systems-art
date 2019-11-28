@@ -3,6 +3,7 @@ import { DynamicSystem } from 'src/classes/dynamic-system';
 import { DynamicBody } from 'src/classes/dynamic-body';
 import { ACTIVE_SYSTEM } from 'src/physics-helpers/update-accelarations';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
+import { SimulationInfo } from './models/simulation-info';
 
 const PIXEL_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 1 : 7; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
 const TOTAL_TIME_UNITS = 1000;
@@ -27,8 +28,6 @@ const SYSTEM_X_RANGE = [SYSTEM_X_CENTER - SYSTEM_X_HALF_SIZE, SYSTEM_X_CENTER + 
 const BATCH_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 9999999 : 21 * WIDTH / PIXEL_SIZE;
 // const ANIMATION_SCALE = 1 / 4;
 
-// TODO: refactor this to contain more info and have a better name and a separate file
-interface SimulationInfo { index: number; xPixelStart: number; yPixelStart: number; body: DynamicBody; showInResult: boolean; }
 
 @Component({
   selector: 'app-root',
@@ -79,6 +78,7 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit() {
+    return; // TODO: actually clean up this file
     this.previewCanvas = this.previewCanvasRef.nativeElement;
     this.arrayPlotCanvas = this.arrayPlotCanvasRef.nativeElement;
     this.wallpaperCanvas = this.wallpaperCanvasRef.nativeElement;

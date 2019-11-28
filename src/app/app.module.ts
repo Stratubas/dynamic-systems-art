@@ -3,10 +3,12 @@ import { NgModule } from '@angular/core';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { KleinGordonChainComponent } from './pages/klein-gordon-chain/klein-gordon-chain.component';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    KleinGordonChainComponent,
   ],
   imports: [
     BrowserModule,
