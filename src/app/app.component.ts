@@ -2,17 +2,18 @@ import { Component, ViewChild, OnInit, ElementRef } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 import { DynamicBody } from 'src/classes/dynamic-body';
 import { ACTIVE_SYSTEM } from 'src/physics-helpers/update-accelarations';
+import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 
-const PIXEL_SIZE = 1; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
-const TOTAL_TIME_UNITS = 1000;
-const TIME_UNITS_PER_FRAME = 10;
+const PIXEL_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 1 : 21; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
+const TOTAL_TIME_UNITS = 50;
+const TIME_UNITS_PER_FRAME = 0.1;
 const ANIMATION_DELAY = 30;
 const SHOW_SIMULATION = true;
 const REAL_TIME_PAINTING = true;
-const LOOP_FOREVER = true;
+const LOOP_FOREVER = false;
 const ACTIVE_PIXEL_STYLE = 'black';
 const WIDTH = 231;
-const HEIGHT = 1080;
+const HEIGHT = 231;
 // const SYSTEM_X_RANGE = [0.4, 0.6];
 // const SYSTEM_Y_RANGE = [0.325, 0.525];
 // For spring system, use x = 0.5, y = 0.425, yHalfSize = 0.1
@@ -23,7 +24,7 @@ const SYSTEM_Y_RANGE = [SYSTEM_Y_CENTER - SYSTEM_Y_HALF_SIZE, SYSTEM_Y_CENTER + 
 const SYSTEM_X_HALF_SIZE = SYSTEM_Y_HALF_SIZE * WIDTH / HEIGHT;
 const SYSTEM_X_RANGE = [SYSTEM_X_CENTER - SYSTEM_X_HALF_SIZE, SYSTEM_X_CENTER + SYSTEM_X_HALF_SIZE];
 // const SUN_MASS = 200;
-const BATCH_SIZE = 9999999; // 7 * WIDTH / PIXEL_SIZE;
+const BATCH_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 9999999 : 7 * WIDTH / PIXEL_SIZE;
 // const ANIMATION_SCALE = 1 / 4;
 
 // TODO: refactor this to contain more info and have a better name and a separate file
@@ -102,17 +103,29 @@ export class AppComponent implements OnInit {
     await this.readyToDraw;
     this.readyToDraw = new Promise(res => setTimeout(res, ANIMATION_DELAY));
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (ACTIVE_SYSTEM === 'klein-gordon') {
+      var energies = getEnergies(this.system.allBodies, 0.1);
+      const totalEnergy = energies.reduce((sum, nrg) => sum + nrg);
+      const global = window as any;
+      if (!global.startEnergy) {
+        global.startEnergy = totalEnergy;
+        global.worstError = 0;
+      }
+      const error = Math.abs(1 - totalEnergy / global.startEnergy);
+      if (error > global.worstError) {
+        global.worstError = error;
+        console.log('New worst |DE/E|:', error);
+      }
+    }
     this.system.allBodies.forEach((body, i) => {
       const size = body.mass === 0 ? 4 : 10;
       const style = body.mass ? (['red', 'blue'][i % 2]) : 'black'; // TODO: identify the body properly
       this.context.fillStyle = style;
       const x = 400 * body.x - size / 2;
       if (ACTIVE_SYSTEM === 'klein-gordon') {
-        let y = body.y;
-        y = 0.5 * y * y;
-        y = y + 0.5 * y * y;
-        y = y + 0.5 * body.vy * body.vy;
-        y = -5 * y + 0.5;
+        let y = energies[i];
+        y = Math.sqrt(y);
+        y = -1 * y + 0.5;
         y = 200 * y - size / 2;
         this.context.fillRect(x, y, size, size);
         y = body.y;
@@ -234,6 +247,15 @@ export class AppComponent implements OnInit {
         const massiveBodyInfo1 = getSimulationInfo(extraIndex++, PIXEL_SIZE, PIXEL_SIZE, massiveBody1);
         const massiveBodyInfo2 = getSimulationInfo(extraIndex++, 3 * PIXEL_SIZE, PIXEL_SIZE, massiveBody2);
         batch.push(massiveBodyInfo1, massiveBodyInfo2);
+      }
+    }
+    if (ACTIVE_SYSTEM === 'spring') {
+      // Adding necessary common bodies in every batch
+      let extraIndex = allSimulations.length;
+      for (const batch of batches) {
+        const anchorBody: DynamicBody = { x: 0.5, y: 0.5, vx: 0, vy: 0, mass: 1, dead: true };
+        const anchorBodyInfo = getSimulationInfo(extraIndex++, PIXEL_SIZE, PIXEL_SIZE, anchorBody);
+        batch.push(anchorBodyInfo);
       }
     }
     const startTime = performance.now();
