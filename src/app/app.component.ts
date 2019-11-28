@@ -99,7 +99,7 @@ export class AppComponent implements OnInit {
     // const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
     const width = this.arrayPlotCanvas.width;
     const height = this.arrayPlotCanvas.height;
-    const myImageData = this.arrayPlotContext.createImageData(width, height);
+    const myImageData = this.arrayPlotContext.createImageData(1, height);
     const data = myImageData.data;
     interface RgbObject { r: number; g: number; b: number; };
     const colorFunction: (value: number) => RgbObject = (value) => {
@@ -127,6 +127,7 @@ export class AppComponent implements OnInit {
       return result;
     }
     for (let plotColumnIndex = 0; plotColumnIndex < width; plotColumnIndex++) {
+      if (nextIndex !== plotColumnIndex) { continue; }
       const arrayRow = array[plotColumnIndex]; // drawing rows into columns and columns into rows
       if (arrayRow === undefined) { continue; }
       for (let plotRowIndex = 0; plotRowIndex < height; plotRowIndex++) {
@@ -134,13 +135,13 @@ export class AppComponent implements OnInit {
         if (arrayColumn === undefined) { continue; }
         // const intValue = Math.round(255 * arrayColumn * scale);
         const color: RgbObject = colorFunction(arrayColumn);
-        const dataIndex = 4 * (plotRowIndex * width + plotColumnIndex);
+        const dataIndex = 4 * plotRowIndex; // 4 * (plotRowIndex * width + plotColumnIndex);
         ({ r: data[dataIndex + 0], g: data[dataIndex + 1], b: data[dataIndex + 2] } = color);
         data[dataIndex + 3] = 255; // alpha
       }
     }
     // console.log(scale, myImageData);
-    this.arrayPlotContext.putImageData(myImageData, 0, 0);
+    this.arrayPlotContext.putImageData(myImageData, nextIndex, 0);
   }
 
   addWallpaperPixel(simulationInfo: SimulationInfo, hitBodyIndex: number, collisionTime: number, customStyle?: string) {
