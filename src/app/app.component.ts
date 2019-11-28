@@ -5,8 +5,8 @@ import { ACTIVE_SYSTEM } from 'src/physics-helpers/update-accelarations';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 
 const PIXEL_SIZE = ACTIVE_SYSTEM === 'klein-gordon' ? 1 : 7; // Valid values for 1920x1080: 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60, 120
-const TOTAL_TIME_UNITS = 50;
-const TIME_UNITS_PER_FRAME = 0.1;
+const TOTAL_TIME_UNITS = 500;
+const TIME_UNITS_PER_FRAME = 1;
 const ANIMATION_DELAY = 30;
 const SHOW_SIMULATION = true;
 const REAL_TIME_PAINTING = true;
@@ -43,11 +43,15 @@ export class AppComponent implements OnInit {
   // animationWidth = WIDTH * ANIMATION_SCALE;
   // animationHeight = HEIGHT * ANIMATION_SCALE;
 
-  @ViewChild('myCanvas', { static: true }) public myCanvas: ElementRef;
+  @ViewChild('previewCanvas', { static: true }) public previewCanvasRef: ElementRef;
   @ViewChild('wallpaperCanvas', { static: true }) public wallpaperCanvasRef: ElementRef;
-  private canvas: HTMLCanvasElement;
-  private context: CanvasRenderingContext2D;
+  @ViewChild('arrayPlotCanvas', { static: true }) public arrayPlotCanvasRef: ElementRef;
+  private previewCanvas: HTMLCanvasElement;
+  private wallpaperCanvas: HTMLCanvasElement;
+  private arrayPlotCanvas: HTMLCanvasElement;
+  private previewContext: CanvasRenderingContext2D;
   private wallpaperContext: CanvasRenderingContext2D;
+  private arrayPlotContext: CanvasRenderingContext2D;
 
   private readyToDraw: Promise<void> = Promise.resolve();
 
@@ -73,14 +77,41 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.canvas = this.myCanvas.nativeElement;
-    this.context = this.canvas.getContext('2d');
-    const wallpaperCanvas: HTMLCanvasElement = this.wallpaperCanvasRef.nativeElement;
-    this.wallpaperContext = wallpaperCanvas.getContext('2d');
+    this.previewCanvas = this.previewCanvasRef.nativeElement;
+    this.arrayPlotCanvas = this.arrayPlotCanvasRef.nativeElement;
+    this.wallpaperCanvas = this.wallpaperCanvasRef.nativeElement;
+    this.previewContext = this.previewCanvas.getContext('2d');
+    this.arrayPlotContext = this.arrayPlotCanvas.getContext('2d');
+    this.wallpaperContext = this.wallpaperCanvas.getContext('2d');
     setTimeout(() => {
       // this.wallpaperContext.fillRect(0, 0, WIDTH, HEIGHT);
       this.doSimulations();
     });
+  }
+
+  drawArrayPlot(array: number[][]) {
+    const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
+    const width = this.arrayPlotCanvas.width;
+    const height = this.arrayPlotCanvas.height;
+    const myImageData = this.arrayPlotContext.createImageData(width, height);
+    const data = myImageData.data;
+    for (let plotColumnIndex = 0; plotColumnIndex < width; plotColumnIndex++) {
+      const arrayRow = array[plotColumnIndex]; // drawing rows into columns and columns into rows
+      if (arrayRow === undefined) { continue; }
+      for (let plotRowIndex = 0; plotRowIndex < height; plotRowIndex++) {
+        const arrayColumn = arrayRow[plotRowIndex];
+        if (arrayColumn === undefined) { continue; }
+        const intValue = Math.round(255 * arrayColumn * scale);
+        const dataIndex = 4 * (plotRowIndex * width + plotColumnIndex);
+        // TODO: custom colorFunction
+        data[dataIndex + 0] = intValue; // red
+        data[dataIndex + 1] = 0; // green
+        data[dataIndex + 2] = 0; // blue
+        data[dataIndex + 3] = 255; // alpha
+      }
+    }
+    console.log(scale, myImageData);
+    this.arrayPlotContext.putImageData(myImageData, 0, 0);
   }
 
   addWallpaperPixel(simulationInfo: SimulationInfo, hitBodyIndex: number, collisionTime: number, customStyle?: string) {
@@ -102,9 +133,10 @@ export class AppComponent implements OnInit {
   async drawAnimationFrame() {
     await this.readyToDraw;
     this.readyToDraw = new Promise(res => setTimeout(res, ANIMATION_DELAY));
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.previewContext.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
     if (ACTIVE_SYSTEM === 'klein-gordon') {
       var energies = getEnergies(this.system.allBodies, 0.1);
+      this.drawArrayPlot(Array(100).fill(energies)); // TODO: don't repeat the same values - use the older ones
       const totalEnergy = energies.reduce((sum, nrg) => sum + nrg);
       const global = window as any;
       if (!global.startEnergy) {
@@ -120,21 +152,21 @@ export class AppComponent implements OnInit {
     this.system.allBodies.forEach((body, i) => {
       const size = body.mass === 0 ? 4 : 10;
       const style = body.mass ? (['red', 'blue'][i % 2]) : 'black'; // TODO: identify the body properly
-      this.context.fillStyle = style;
+      this.previewContext.fillStyle = style;
       const x = 400 * body.x - size / 2;
       if (ACTIVE_SYSTEM === 'klein-gordon') {
         let y = energies[i];
         y = Math.sqrt(y);
         y = -1 * y + 0.5;
         y = 200 * y - size / 2;
-        this.context.fillRect(x, y, size, size);
+        this.previewContext.fillRect(x, y, size, size);
         y = body.y;
         y = -y + 0.5;
         y = 150 + 200 * y - size / 2;
-        this.context.fillRect(x, y, size, size);
+        this.previewContext.fillRect(x, y, size, size);
       } else {
         const y = 400 * body.y - size / 2;
-        this.context.fillRect(x, y, size, size);
+        this.previewContext.fillRect(x, y, size, size);
       }
     });
   }
