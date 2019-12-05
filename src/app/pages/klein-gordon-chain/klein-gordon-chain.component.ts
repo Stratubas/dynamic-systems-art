@@ -80,6 +80,20 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.drawDisplacement();
     const energies = this.drawEnergy();
     this.drawArrayPlotColumn(energies);
+    this.drawEnergyRatio();
+  }
+
+  drawEnergyRatio() { // TODO
+    const text = '(under construction)';
+    this.energyRatioContext.font = 100 + 'px Arial';
+    // const measurement = this.energyRatioContext.measureText(text);
+    // const width = measurement.actualBoundingBoxRight - measurement.actualBoundingBoxLeft;
+    // const height = measurement.actualBoundingBoxAscent - measurement.actualBoundingBoxDescent;
+    this.energyRatioContext.clearRect(0, 0, this.energyRatioCanvas.width, this.energyRatioCanvas.height);
+    this.energyRatioContext.save();
+    this.energyRatioContext.scale(0.25, 1);
+    this.energyRatioContext.fillText(text, 0, this.energyRatioCanvas.height / 2);
+    this.energyRatioContext.restore();
   }
 
   drawDisplacement() {
