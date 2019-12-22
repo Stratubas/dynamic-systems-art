@@ -3,10 +3,10 @@ import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
 
-const TOTAL_TIME_UNITS = 1000;
-const TIME_UNITS_PER_FRAME = 2;
+const TOTAL_TIME_UNITS = 100000; // deployed: 1000
+const TIME_UNITS_PER_FRAME = 100; // deployed: 2
 
-const ANIMATION_DELAY = 30; // TODO: ask browser for next frame callback
+const ANIMATION_DELAY = 0; // deployed: 30 // TODO: ask browser for next frame callback
 
 const DEFAULT_OSCILLATOR_COUNT = 101;
 const DEFAULT_INITIAL_CENTER_MOMENTUM = 0.875;
@@ -23,7 +23,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   public arrayPlotHeight = 3 * this.oscillatorCount; // TODO: use adaptive scale for more oscillators
   public arrayPlotLength = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
   public totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
-  private arrayPlotArray: number[][] = Array(this.arrayPlotLength);
+  private arrayPlotArray: number[][];
 
   public currentTimeUnits = 0;
 
@@ -45,14 +45,37 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   private readyToDraw: Promise<void> = Promise.resolve();
   private isDestroyed = false;
 
+  private canDoNextFrame: Promise<void> = Promise.resolve();
+  private nextFrameResolver: () => void;
+
+  private currentSimulationIndex = 0;
+
   constructor() {
     this.system = new DynamicSystem('klein-gordon');
   }
 
   ngOnInit() {
     console.log('Klein-Gordon chain component is being initialized.');
+    this.restartSimulation();
+  }
+
+  restartSimulation() {
     this.initCanvases();
+    this.currentSimulationIndex++;
     this.runSimulation();
+  }
+
+  pauseSimulation() {
+    if (this.nextFrameResolver) { return; }
+    this.canDoNextFrame = new Promise(resolve => {
+      this.nextFrameResolver = resolve;
+    });
+  }
+
+  continueSimulation() {
+    if (!this.nextFrameResolver) { return; }
+    this.nextFrameResolver();
+    this.nextFrameResolver = null;
   }
 
   ngOnDestroy() {
@@ -71,6 +94,8 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.energyContext = this.energyCanvas.getContext('2d');
     this.energyRatioContext = this.energyRatioCanvas.getContext('2d');
     this.arrayPlotContext = this.arrayPlotCanvas.getContext('2d');
+
+    this.arrayPlotContext.clearRect(0, 0, this.arrayPlotCanvas.width, this.arrayPlotCanvas.height);
   }
 
   async drawFrame(currentTimeUnits: number) {
@@ -181,6 +206,8 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
 
   async runSimulation() {
     this.system.reset();
+    this.currentTimeUnits = 0;
+    this.arrayPlotArray = Array(this.arrayPlotLength);
     for (let oscillatorIndex = 0; oscillatorIndex < this.oscillatorCount; oscillatorIndex++) {
       const body: DynamicBody = {
         x: oscillatorIndex + 0.5, // not realy necessary
@@ -196,9 +223,11 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const startTime = perfTime;
     const frameTimesBufferSize = 100;
     const frameTimes = Array(frameTimesBufferSize);
+    const thisSimulationIndex = this.currentSimulationIndex;
     let frameTimesSum = 0;
     for (let frameIndex = 0; frameIndex < this.totalFrames && !this.isDestroyed;) {
       await this.system.doTimeSteps(TIME_UNITS_PER_FRAME);
+      if (thisSimulationIndex !== this.currentSimulationIndex) { break; }
       await this.drawFrame(++frameIndex * TIME_UNITS_PER_FRAME);
       const ms = Math.round(-perfTime + (perfTime = performance.now()));
       frameTimes[frameIndex % frameTimesBufferSize] = ms;
@@ -213,6 +242,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
         console.log(fpsMsg, progressMsg);
         frameTimesSum = 0;
       }
+      await this.canDoNextFrame;
     }
     const status = this.isDestroyed ? 'aborted' : 'completed';
     console.log('Simulation was', status, 'in', Math.round(performance.now() - startTime), 'ms.');
