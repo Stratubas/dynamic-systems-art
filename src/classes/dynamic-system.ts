@@ -7,7 +7,7 @@ import { doPhysicsStep } from 'src/physics-helpers/do-physics-step';
 import { SystemType } from 'src/app/models/system-type';
 
 const WORKERS_COUNT = 0; // 0 to disable, navigator.hardwareConcurrency to get CPU threads
-let workersToMake: number = 0;
+let workersToMake = 0;
 if (WORKERS_COUNT && typeof Worker !== 'undefined') {
     console.log('Working with', WORKERS_COUNT, 'worker(s).');
     workersToMake = WORKERS_COUNT;

@@ -18,11 +18,12 @@ const DEFAULT_INITIAL_CENTER_MOMENTUM = 0.875;
 })
 export class KleinGordonChainComponent implements OnInit, OnDestroy {
 
-  public oscillatorCount = DEFAULT_OSCILLATOR_COUNT;
-  public initialMomentum = DEFAULT_INITIAL_CENTER_MOMENTUM;
-  public arrayPlotHeight = 3 * this.oscillatorCount; // TODO: use adaptive scale for more oscillators
-  public arrayPlotLength = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
-  public totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
+  public oscillatorCount: number;
+  public initialMomentum: number;
+  public arrayPlotHeight: number;
+  public arrayPlotLength: number;
+  public totalFrames: number;
+  public arrayPlotScale: number;
   private arrayPlotArray: number[][];
 
   public currentTimeUnits = 0;
@@ -52,11 +53,28 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
 
   constructor() {
     this.system = new DynamicSystem('klein-gordon');
+    this.initVariables();
   }
 
   ngOnInit() {
     console.log('Klein-Gordon chain component is being initialized.');
     this.restartSimulation();
+  }
+
+  ngOnDestroy() {
+    console.log('Klein-Gordon chain component is being destroyed.');
+    this.system.shutdown();
+    this.isDestroyed = true;
+  }
+
+  initVariables() {
+    const config: any = JSON.parse(localStorage.getItem('config') || '{}'); // TODO
+    this.oscillatorCount = config.oscillatorCount || DEFAULT_OSCILLATOR_COUNT;
+    this.initialMomentum = config.initialMomentum || DEFAULT_INITIAL_CENTER_MOMENTUM;
+    this.arrayPlotScale = config.arrayPlotScale || 1;
+    this.arrayPlotHeight = 3 * this.oscillatorCount; // TODO: use adaptive scale
+    this.arrayPlotLength = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
+    this.totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
   }
 
   restartSimulation() {
@@ -76,12 +94,6 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     if (!this.nextFrameResolver) { return; }
     this.nextFrameResolver();
     this.nextFrameResolver = null;
-  }
-
-  ngOnDestroy() {
-    console.log('Klein-Gordon chain component is being destroyed.');
-    this.system.shutdown();
-    this.isDestroyed = true;
   }
 
   initCanvases() {
@@ -154,7 +166,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
 
   drawArrayPlotColumn(newPlotColumn: number[]) {
     const nextIndex = this.arrayPlotArray.findIndex(subarray => !subarray);
-    if (nextIndex === -1) { return; };
+    if (nextIndex === -1) { return; }
     this.arrayPlotArray[nextIndex] = newPlotColumn;
     const array = this.arrayPlotArray;
     // const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
@@ -162,10 +174,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const height = this.arrayPlotCanvas.height;
     const myImageData = this.arrayPlotContext.createImageData(1, height);
     const data = myImageData.data;
-    interface RgbObject { r: number; g: number; b: number; };
+    interface RgbObject { r: number; g: number; b: number; }
     const colorFunction: (value: number) => RgbObject = (value) => {
       const maxValue = 0.3;
-      const transformedValue = value; // Math.sqrt(value);
+      const transformedValue = this.arrayPlotScale * value; // Math.sqrt(value);
       const checkpoints = [
         { at: maxValue * 0 / 20, rgb: { r: 0, g: 0, b: 0 } },
         { at: maxValue * 1 / 20, rgb: { r: 255, g: 0, b: 0 } },
@@ -185,9 +197,9 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
         r: Math.round(checkpoint1.rgb.r * ratio1 + checkpoint2.rgb.r * ratio2),
         g: Math.round(checkpoint1.rgb.g * ratio1 + checkpoint2.rgb.g * ratio2),
         b: Math.round(checkpoint1.rgb.b * ratio1 + checkpoint2.rgb.b * ratio2),
-      }
+      };
       return result;
-    }
+    };
     for (let plotColumnIndex = 0; plotColumnIndex < width; plotColumnIndex++) {
       if (nextIndex !== plotColumnIndex) { continue; }
       const arrayRow = array[plotColumnIndex]; // drawing rows into columns and columns into rows
@@ -215,7 +227,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
         vx: 0,
         vy: oscillatorIndex === (this.oscillatorCount - 1) / 2 ? this.initialMomentum : 0,
         mass: 0,
-      }
+      };
       this.system.addBody(body);
     }
     await this.drawFrame(0);
