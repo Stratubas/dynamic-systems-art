@@ -22,8 +22,32 @@
             style="display:block; border: 2px solid black; width: 100%; image-rendering: pixelated;"></canvas>
     </div>
 </div>
-<div>Initial central momentum: <input type="number" [(ngModel)]="initialMomentum"></div>
-<div>arrayPlotScale: <input type="number" [(ngModel)]="arrayPlotScale"></div>
-<button (click)="pauseSimulation()">Pause</button>
-<button (click)="continueSimulation()">Continue</button>
-<button (click)="restartSimulation()">Restart</button>
+<div class="my">
+    Number of oscillators: <input type="number" [(ngModel)]="oscillatorCount" (input)="updateTotalFrames()">
+</div>
+<div class="my">
+    Initial central momentum: <input type="number" [(ngModel)]="initialMomentum">
+    (energy: {{initialMomentum * initialMomentum / 2}})
+</div>
+<div class="my">
+    Time units - Total: <input type="number" [(ngModel)]="totalTimeUnits" (input)="updateTotalFrames()">
+    Per frame: <input type="number" [(ngModel)]="timeUnitsPerFrame" (input)="updateTotalFrames()">
+    (total frames: {{totalFrames}})
+</div>
+<div class="my">
+    Color plot intensity: <input type="number" [(ngModel)]="arrayPlotScale">
+</div>
+<div class="my">
+    Animation frame-to-frame delay (ms): <input type="number" [(ngModel)]="animationDelay">
+    (target FPS: {{1000 / animationDelay}})
+    (achieved FPS: {{fps}})
+</div>
+<div class="my">
+    <button (click)="pauseSimulation()" [disabled]="nextFrameResolver">Pause</button>
+    <button (click)="continueSimulation()" [disabled]="!nextFrameResolver">Continue</button>
+    <button (click)="restartSimulation()">Restart</button>
+</div>
+<div class="my">
+    <button (click)="saveConfig()">Save this config</button>
+    <button (click)="saveConfig(true)">Load default config</button>
+</div>

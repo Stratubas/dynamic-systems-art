@@ -3,13 +3,14 @@ import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
 
-const TOTAL_TIME_UNITS = 100000; // deployed: 1000
-const TIME_UNITS_PER_FRAME = 100; // deployed: 2
+const DEFAULT_TOTAL_TIME_UNITS = 1000;
+const DEFAULT_TIME_UNITS_PER_FRAME = 2;
 
-const ANIMATION_DELAY = 0; // deployed: 30 // TODO: ask browser for next frame callback
+const DEFAULT_ANIMATION_DELAY = 30; // TODO: ask browser for next frame callback
 
 const DEFAULT_OSCILLATOR_COUNT = 101;
 const DEFAULT_INITIAL_CENTER_MOMENTUM = 0.875;
+const DEFAULT_ARRAY_PLOT_SCALE = 1;
 
 @Component({
   selector: 'app-klein-gordon-chain',
@@ -24,6 +25,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   public arrayPlotLength: number;
   public totalFrames: number;
   public arrayPlotScale: number;
+  public totalTimeUnits: number;
+  public timeUnitsPerFrame: number;
+  public animationDelay: number;
+
   private arrayPlotArray: number[][];
 
   public currentTimeUnits = 0;
@@ -47,9 +52,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   private isDestroyed = false;
 
   private canDoNextFrame: Promise<void> = Promise.resolve();
-  private nextFrameResolver: () => void;
+  public nextFrameResolver: () => void;
 
   private currentSimulationIndex = 0;
+  public fps = 0;
 
   constructor() {
     this.system = new DynamicSystem('klein-gordon');
@@ -67,14 +73,38 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.isDestroyed = true;
   }
 
+  updateTotalFrames() {
+    this.totalFrames = Math.round(this.totalTimeUnits / this.timeUnitsPerFrame);
+    this.arrayPlotHeight = 200;
+    this.arrayPlotLength = this.totalFrames;
+  }
+
   initVariables() {
-    const config: any = JSON.parse(localStorage.getItem('config') || '{}'); // TODO
+    const config: any = JSON.parse(localStorage.getItem('config') || '{}');
     this.oscillatorCount = config.oscillatorCount || DEFAULT_OSCILLATOR_COUNT;
     this.initialMomentum = config.initialMomentum || DEFAULT_INITIAL_CENTER_MOMENTUM;
-    this.arrayPlotScale = config.arrayPlotScale || 1;
-    this.arrayPlotHeight = 3 * this.oscillatorCount; // TODO: use adaptive scale
-    this.arrayPlotLength = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
-    this.totalFrames = Math.round(TOTAL_TIME_UNITS / TIME_UNITS_PER_FRAME);
+    this.totalTimeUnits = config.totalTimeUnits || DEFAULT_TOTAL_TIME_UNITS;
+    this.timeUnitsPerFrame = config.timeUnitsPerFrame || DEFAULT_TIME_UNITS_PER_FRAME;
+    this.arrayPlotScale = config.arrayPlotScale || DEFAULT_ARRAY_PLOT_SCALE;
+    this.animationDelay = config.animationDelay || DEFAULT_ANIMATION_DELAY;
+    this.updateTotalFrames();
+  }
+
+  saveConfig(toDefault = false) {
+    if (toDefault) {
+      localStorage.removeItem('config');
+    } else {
+      const config = {
+        oscillatorCount: this.oscillatorCount,
+        initialMomentum: this.initialMomentum,
+        totalTimeUnits: this.totalTimeUnits,
+        timeUnitsPerFrame: this.timeUnitsPerFrame,
+        arrayPlotScale: this.arrayPlotScale,
+        animationDelay: this.animationDelay,
+      };
+      localStorage.setItem('config', JSON.stringify(config));
+    }
+    this.initVariables();
   }
 
   restartSimulation() {
@@ -112,7 +142,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
 
   async drawFrame(currentTimeUnits: number) {
     await this.readyToDraw;
-    this.readyToDraw = new Promise(res => setTimeout(res, ANIMATION_DELAY));
+    this.readyToDraw = new Promise(res => setTimeout(res, this.animationDelay));
     this.currentTimeUnits = currentTimeUnits;
     this.drawDisplacement();
     const energies = this.drawEnergy();
@@ -142,9 +172,11 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.displacementContext.clearRect(0, 0, this.displacementCanvas.width, canvasHeight);
     const displacements = this.system.allBodies.map(body => body.y);
     // console.log(JSON.parse(JSON.stringify(this.system.allBodies)));
+    const p2 = this.initialMomentum * this.initialMomentum;
+    const maxDisplacement = Math.sqrt(0.1 * (Math.sqrt(121 + 200 * p2) - 11));
     displacements.forEach((displacement, oscillatorIndex) => {
       const xPixel = oscillatorIndex;
-      const yPixel = Math.round(canvasHeight * (0.5 - displacement / this.initialMomentum) - itemHalfHeight);
+      const yPixel = Math.round(canvasHeight * 0.5 * (1 - displacement / maxDisplacement) - itemHalfHeight);
       this.displacementContext.fillRect(xPixel, yPixel, 1, itemHeight);
     });
   }
@@ -156,9 +188,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const context = this.energyContext;
     context.clearRect(0, 0, canvas.width, canvas.height);
     const energies = getEnergies(this.system.allBodies);
+    const maxEnergy = 0.5 * this.initialMomentum * this.initialMomentum;
     energies.forEach((energy, oscillatorIndex) => {
       const xPixel = oscillatorIndex;
-      const yPixel = Math.round(canvas.height * (0.9 - Math.sqrt(energy) / this.initialMomentum) - itemHalfHeight);
+      const yPixel = Math.round(canvas.height * (1 - Math.sqrt(energy / maxEnergy)) - itemHalfHeight);
       context.fillRect(xPixel, yPixel, 1, itemHeight);
     });
     return energies;
@@ -238,18 +271,19 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const thisSimulationIndex = this.currentSimulationIndex;
     let frameTimesSum = 0;
     for (let frameIndex = 0; frameIndex < this.totalFrames && !this.isDestroyed;) {
-      await this.system.doTimeSteps(TIME_UNITS_PER_FRAME);
+      await this.canDoNextFrame;
+      await this.system.doTimeSteps(this.timeUnitsPerFrame);
       if (thisSimulationIndex !== this.currentSimulationIndex) { break; }
-      await this.drawFrame(++frameIndex * TIME_UNITS_PER_FRAME);
+      await this.drawFrame(++frameIndex * this.timeUnitsPerFrame);
       const ms = Math.round(-perfTime + (perfTime = performance.now()));
       frameTimes[frameIndex % frameTimesBufferSize] = ms;
       frameTimesSum += ms;
       if (frameIndex % frameTimesBufferSize === frameTimesBufferSize - 1) {
         const msPerFrame = frameTimesSum / frameTimesBufferSize;
-        const fps = Math.round(1000 / msPerFrame);
-        const etaSeconds = Math.round((this.totalFrames - frameIndex) / fps);
+        this.fps = Math.round(1000 / msPerFrame);
+        const etaSeconds = Math.round((this.totalFrames - frameIndex) / this.fps);
         const etaMinutes = (etaSeconds / 60).toFixed(3);
-        const fpsMsg = `Ms/frame: ${msPerFrame.toFixed(3)} (${fps} fps).`;
+        const fpsMsg = `Ms/frame: ${msPerFrame.toFixed(3)} (${this.fps} fps).`;
         const progressMsg = `Progress: ${frameIndex + 1}/${this.totalFrames} frames, ETA: ${etaSeconds} s (${etaMinutes} min).`;
         console.log(fpsMsg, progressMsg);
         frameTimesSum = 0;
