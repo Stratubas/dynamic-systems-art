@@ -73,6 +73,29 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.isDestroyed = true;
   }
 
+  downloadResults() {
+    const float64View = new Float64Array(this.oscillatorCount * this.totalFrames);
+    let i = 0;
+    for (const stepEnergies of this.arrayPlotArray) {
+      for (const oscillatorEnergy of stepEnergies) {
+        float64View[i++] = oscillatorEnergy;
+      }
+    }
+    const blob = new Blob([float64View]);
+    const exportName = `export-${Date.now()}.bin`;
+    // // For json:
+    // const data = { data: this.arrayPlotArray };
+    // const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+    const url = window.URL.createObjectURL(blob);
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute('href', url);
+    downloadAnchorNode.setAttribute('download', exportName);
+    document.body.appendChild(downloadAnchorNode); // required for firefox
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
   updateTotalFrames() {
     this.totalFrames = Math.round(this.totalTimeUnits / this.timeUnitsPerFrame);
     this.arrayPlotHeight = 200;
@@ -86,7 +109,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.totalTimeUnits = config.totalTimeUnits || DEFAULT_TOTAL_TIME_UNITS;
     this.timeUnitsPerFrame = config.timeUnitsPerFrame || DEFAULT_TIME_UNITS_PER_FRAME;
     this.arrayPlotScale = config.arrayPlotScale || DEFAULT_ARRAY_PLOT_SCALE;
-    this.animationDelay = config.animationDelay || DEFAULT_ANIMATION_DELAY;
+    this.animationDelay = config.animationDelay || DEFAULT_ANIMATION_DELAY; // TODO: typescript ?? operator
     this.updateTotalFrames();
   }
 
@@ -208,8 +231,8 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const myImageData = this.arrayPlotContext.createImageData(1, height);
     const data = myImageData.data;
     interface RgbObject { r: number; g: number; b: number; }
+    const maxValue = 0.5 * this.initialMomentum * this.initialMomentum;
     const colorFunction: (value: number) => RgbObject = (value) => {
-      const maxValue = 0.3;
       const transformedValue = this.arrayPlotScale * value; // Math.sqrt(value);
       const checkpoints = [
         { at: maxValue * 0 / 20, rgb: { r: 0, g: 0, b: 0 } },
