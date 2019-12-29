@@ -31,7 +31,7 @@
 <div class="my">
     Time units - Total: <input type="number" [(ngModel)]="totalTimeUnits" (input)="updateTotalFrames()">
     Per frame: <input type="number" [(ngModel)]="timeUnitsPerFrame" (input)="updateTotalFrames()">
-    (total frames: {{totalFrames}})
+    (total frames: 1 + {{totalFrames - 1}} = {{totalFrames}})
 </div>
 <div class="my">
     Color plot intensity: <input type="number" [(ngModel)]="arrayPlotScale">

@@ -3,13 +3,13 @@ import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
 
-const DEFAULT_TOTAL_TIME_UNITS = 1000;
-const DEFAULT_TIME_UNITS_PER_FRAME = 2;
+const DEFAULT_TOTAL_TIME_UNITS = 5000;
+const DEFAULT_TIME_UNITS_PER_FRAME = 5;
 
 const DEFAULT_ANIMATION_DELAY = 30; // TODO: ask browser for next frame callback
 
 const DEFAULT_OSCILLATOR_COUNT = 101;
-const DEFAULT_INITIAL_CENTER_MOMENTUM = 0.875;
+const DEFAULT_INITIAL_CENTER_MOMENTUM = 0.854;
 const DEFAULT_ARRAY_PLOT_SCALE = 1;
 
 @Component({
@@ -98,7 +98,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   }
 
   updateTotalFrames() {
-    this.totalFrames = Math.round(this.totalTimeUnits / this.timeUnitsPerFrame);
+    this.totalFrames = Math.round(this.totalTimeUnits / this.timeUnitsPerFrame) + 1;
     this.arrayPlotHeight = 200;
     this.arrayPlotLength = this.totalFrames;
   }
@@ -164,8 +164,9 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.arrayPlotContext.clearRect(0, 0, this.arrayPlotCanvas.width, this.arrayPlotCanvas.height);
   }
 
-  async drawFrame(currentTimeUnits: number) {
+  async drawFrame(currentTimeUnits: number, simulationIndex: any) {
     await this.readyToDraw;
+    if (simulationIndex !== this.currentSimulationIndex) { return; }
     this.readyToDraw = new Promise(res => setTimeout(res, this.animationDelay));
     this.currentTimeUnits = currentTimeUnits;
     this.drawDisplacement();
@@ -311,18 +312,19 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       };
       this.system.addBody(body);
     }
-    await this.drawFrame(0);
+    const thisSimulationIndex = this.currentSimulationIndex;
+    await this.drawFrame(0, thisSimulationIndex);
     let perfTime = performance.now();
     const startTime = perfTime;
     const frameTimesBufferSize = 100;
     const frameTimes = Array(frameTimesBufferSize);
-    const thisSimulationIndex = this.currentSimulationIndex;
     let frameTimesSum = 0;
-    for (let frameIndex = 0; frameIndex < this.totalFrames && !this.isDestroyed;) {
+    for (let frameIndex = 0; frameIndex < this.totalFrames - 1 && !this.isDestroyed;) {
       await this.canDoNextFrame;
+      if (thisSimulationIndex !== this.currentSimulationIndex) { break; }
       await this.system.doTimeSteps(this.timeUnitsPerFrame);
       if (thisSimulationIndex !== this.currentSimulationIndex) { break; }
-      await this.drawFrame(++frameIndex * this.timeUnitsPerFrame);
+      await this.drawFrame(++frameIndex * this.timeUnitsPerFrame, thisSimulationIndex);
       const ms = Math.round(-perfTime + (perfTime = performance.now()));
       frameTimes[frameIndex % frameTimesBufferSize] = ms;
       frameTimesSum += ms;
