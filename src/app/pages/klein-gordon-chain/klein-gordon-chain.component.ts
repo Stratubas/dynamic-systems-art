@@ -30,6 +30,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   public animationDelay: number;
 
   private arrayPlotArray: number[][];
+  private energyRatioArray: number[];
 
   public currentTimeUnits = 0;
 
@@ -170,29 +171,52 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.drawDisplacement();
     const energies = this.drawEnergy();
     this.drawArrayPlotColumn(energies);
-    this.drawEnergyRatio();
+    this.drawEnergyRatio(energies);
   }
 
-  drawEnergyRatio() { // TODO
-    const text = '(under construction)';
-    this.energyRatioContext.font = 100 + 'px Arial';
-    // const measurement = this.energyRatioContext.measureText(text);
-    // const width = measurement.actualBoundingBoxRight - measurement.actualBoundingBoxLeft;
-    // const height = measurement.actualBoundingBoxAscent - measurement.actualBoundingBoxDescent;
-    this.energyRatioContext.clearRect(0, 0, this.energyRatioCanvas.width, this.energyRatioCanvas.height);
-    this.energyRatioContext.save();
-    this.energyRatioContext.scale(0.25, 1);
-    this.energyRatioContext.fillText(text, 0, this.energyRatioCanvas.height / 2);
-    this.energyRatioContext.restore();
+  drawEnergyRatio(energies: number[]) {
+    const nextIndex = this.energyRatioArray.findIndex(value => value === undefined);
+    if (nextIndex === 0) {
+      this.energyRatioContext.fillStyle = 'white';
+      this.energyRatioContext.fillRect(0, 0, this.energyRatioCanvas.width, this.energyRatioCanvas.height);
+      this.energyRatioContext.fillStyle = 'black';
+    }
+    if (nextIndex === -1) { return; }
+    const canvas = this.energyRatioCanvas;
+    const canvasHeight = canvas.height;
+    const itemHalfHeight = 0.5 * (canvas.clientWidth * canvas.height / (canvas.width * canvas.clientHeight));
+    // const itemHeight = Math.round(2 * itemHalfHeight);
+    let centerEnergy = 0;
+    let totalEnergy = 0;
+    const from = (energies.length + 1) * 0.5 - 5;
+    const to = from + 10;
+    for (let index = 0; index < energies.length; index++) {
+      const energy = energies[index];
+      totalEnergy += energy;
+      if (index >= from && index <= to) {
+        centerEnergy += energy;
+      }
+    }
+    const energyRatio = centerEnergy / totalEnergy;
+    this.energyRatioArray[nextIndex] = energyRatio;
+    const previousEnergyRatio = nextIndex ? this.energyRatioArray[nextIndex - 1] : energyRatio;
+    const yPixel = Math.round(canvasHeight * (1 - energyRatio) - itemHalfHeight);
+    const yPreviousPixel = Math.round(canvasHeight * (1 - previousEnergyRatio) - itemHalfHeight);
+    const context = this.energyRatioContext;
+    context.beginPath();
+    context.moveTo(nextIndex - 1 + 0.5, yPreviousPixel + 0.5);
+    context.lineTo(nextIndex + 0.5, yPixel + 0.5);
+    context.stroke();
+    // context.fillRect(nextIndex - 2, yPixel - 2, 5, 5);
   }
 
   drawDisplacement() {
     const canvas = this.displacementCanvas;
-    const canvasHeight = this.displacementCanvas.height;
+    const canvasHeight = canvas.height;
     const itemHalfHeight = 0.5 * (canvas.clientWidth * canvas.height / (canvas.width * canvas.clientHeight));
     const itemHeight = Math.round(2 * itemHalfHeight);
     // console.log(canvas.clientWidth, canvas.width, canvas.clientHeight, canvas.height, itemHeight);
-    this.displacementContext.clearRect(0, 0, this.displacementCanvas.width, canvasHeight);
+    this.displacementContext.clearRect(0, 0, canvas.width, canvasHeight);
     const displacements = this.system.allBodies.map(body => body.y);
     // console.log(JSON.parse(JSON.stringify(this.system.allBodies)));
     const p2 = this.initialMomentum * this.initialMomentum;
@@ -276,6 +300,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.system.reset();
     this.currentTimeUnits = 0;
     this.arrayPlotArray = Array(this.arrayPlotLength);
+    this.energyRatioArray = Array(this.arrayPlotLength);
     for (let oscillatorIndex = 0; oscillatorIndex < this.oscillatorCount; oscillatorIndex++) {
       const body: DynamicBody = {
         x: oscillatorIndex + 0.5, // not realy necessary
