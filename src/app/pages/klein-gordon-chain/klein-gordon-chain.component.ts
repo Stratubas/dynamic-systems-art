@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, ElementRef, OnDestroy } from '@angular/co
 import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
+import { getXvData } from 'src/physics-helpers/klein-gordon-chain/get-xv-data';
 
 const DEFAULT_TOTAL_TIME_UNITS = 5000;
 const DEFAULT_TIME_UNITS_PER_FRAME = 5;
@@ -30,6 +31,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   public animationDelay: number;
 
   private arrayPlotArray: number[][];
+  private xvHistory: number[][];
   private energyRatioArray: number[];
 
   public currentTimeUnits = 0;
@@ -74,16 +76,22 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.isDestroyed = true;
   }
 
-  downloadResults() {
-    const float64View = new Float64Array(this.oscillatorCount * this.totalFrames);
+  downloadResults(type: 'energy' | 'xv') {
+    if (!type) {
+      console.error(`What do you want, 'energy' or 'xv'?`);
+      return;
+    }
+    const dataLength = this.oscillatorCount * this.totalFrames * (type === 'xv' ? 2 : 1);
+    const float64View = new Float64Array(dataLength);
     let i = 0;
-    for (const stepEnergies of this.arrayPlotArray) {
-      for (const oscillatorEnergy of stepEnergies) {
-        float64View[i++] = oscillatorEnergy;
+    const source = type === 'xv' ? this.xvHistory : this.arrayPlotArray;
+    for (const stepData of source) {
+      for (const oscillatorData of stepData) {
+        float64View[i++] = oscillatorData;
       }
     }
     const blob = new Blob([float64View]);
-    const exportName = `export-${Date.now()}.bin`;
+    const exportName = `${type}-export-${Date.now()}.bin`;
     // // For json:
     // const data = { data: this.arrayPlotArray };
     // const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
@@ -248,6 +256,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   drawArrayPlotColumn(newPlotColumn: number[]) {
     const nextIndex = this.arrayPlotArray.findIndex(subarray => !subarray);
     if (nextIndex === -1) { return; }
+    this.xvHistory[nextIndex] = getXvData(this.system.allBodies);
     this.arrayPlotArray[nextIndex] = newPlotColumn;
     const array = this.arrayPlotArray;
     // const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
@@ -301,6 +310,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.system.reset();
     this.currentTimeUnits = 0;
     this.arrayPlotArray = Array(this.arrayPlotLength);
+    this.xvHistory = Array(this.arrayPlotLength);
     this.energyRatioArray = Array(this.arrayPlotLength);
     for (let oscillatorIndex = 0; oscillatorIndex < this.oscillatorCount; oscillatorIndex++) {
       const body: DynamicBody = {

@@ -49,5 +49,9 @@
 <div class="my">
     <button (click)="saveConfig()">Save this config</button>
     <button (click)="saveConfig(true)">Load default config</button>
-    <button (click)="downloadResults()">Download results</button>
+</div>
+<div class="my">
+    Download binary data:
+    <button (click)="downloadResults('energy')">Energy</button>
+    <button (click)="downloadResults('xv')">x and v</button>
 </div>
