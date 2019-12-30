@@ -1,8 +1,12 @@
 input {
-  width: 80px;
+  width: 100px;
 }
 
 .my {
   margin-top: 10px;
   margin-bottom: 10px;
+}
+
+.default-width {
+  width: unset;
 }

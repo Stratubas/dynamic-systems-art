@@ -105,6 +105,42 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     window.URL.revokeObjectURL(url);
   }
 
+  async importResults(binaryXvDataFile?: File) {
+    console.log(binaryXvDataFile);
+    if (!binaryXvDataFile) { return; }
+    const buffer: ArrayBuffer = await new Promise((resolve: any) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(reader.result);
+      };
+      reader.readAsArrayBuffer(binaryXvDataFile);
+    });
+    // TODO: save + load metedata in binary file or aux file
+    const oscillatorCount = this.oscillatorCount;
+    const float64View = new Float64Array(buffer);
+    const stepCount = (float64View.length / oscillatorCount) / 2;
+    this.totalTimeUnits = stepCount - 1;
+    this.timeUnitsPerFrame = 1;
+    this.updateTotalFrames();
+    await new Promise(resolve => setTimeout(resolve));
+    this.arrayPlotArray = new Array(stepCount);
+    this.xvHistory = new Array(stepCount);
+    this.energyRatioArray = new Array(stepCount);
+    const startTime = performance.now();
+    let bufferIndex = 0;
+    for (let stepIndex = 0; stepIndex < stepCount; stepIndex++) {
+      for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
+        this.system.allBodies[bodyIndex].y = float64View[bufferIndex++];
+      }
+      for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
+        this.system.allBodies[bodyIndex].vy = float64View[bufferIndex++];
+      }
+      this.drawFrame(stepIndex, -1, true);
+    }
+    const loadingTime = performance.now() - startTime;
+    console.log('Loaded binary data in', loadingTime, 'ms');
+  }
+
   updateTotalFrames() {
     this.totalFrames = Math.round(this.totalTimeUnits / this.timeUnitsPerFrame) + 1;
     this.arrayPlotHeight = 200;
@@ -172,11 +208,13 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.arrayPlotContext.clearRect(0, 0, this.arrayPlotCanvas.width, this.arrayPlotCanvas.height);
   }
 
-  async drawFrame(currentTimeUnits: number, simulationIndex: any) {
-    await this.readyToDraw;
-    if (simulationIndex !== this.currentSimulationIndex) { return; }
-    this.readyToDraw = new Promise(res => setTimeout(res, this.animationDelay));
-    this.currentTimeUnits = currentTimeUnits;
+  async drawFrame(currentTimeUnits: number, simulationIndex: any, force?: true) {
+    if (!force) {
+      await this.readyToDraw;
+      if (simulationIndex !== this.currentSimulationIndex) { return; }
+      this.readyToDraw = new Promise(res => setTimeout(res, this.animationDelay));
+      this.currentTimeUnits = currentTimeUnits;
+    }
     this.drawDisplacement();
     const energies = this.drawEnergy();
     this.drawArrayPlotColumn(energies);
@@ -229,7 +267,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const displacements = this.system.allBodies.map(body => body.y);
     // console.log(JSON.parse(JSON.stringify(this.system.allBodies)));
     const p2 = this.initialMomentum * this.initialMomentum;
-    const maxDisplacement = Math.sqrt(0.1 * (Math.sqrt(121 + 200 * p2) - 11));
+    const maxDisplacement = Math.sqrt(0.1 * (Math.sqrt(121 + 200 * p2) - 11)); // TODO: dynamic epsilon
     displacements.forEach((displacement, oscillatorIndex) => {
       const xPixel = oscillatorIndex;
       const yPixel = Math.round(canvasHeight * 0.5 * (1 - displacement / maxDisplacement) - itemHalfHeight);
