@@ -189,7 +189,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     // const itemHeight = Math.round(2 * itemHalfHeight);
     let centerEnergy = 0;
     let totalEnergy = 0;
-    const from = (energies.length + 1) * 0.5 - 5;
+    const from = (energies.length + 1) * 0.5 - 6;
     const to = from + 10;
     for (let index = 0; index < energies.length; index++) {
       const energy = energies[index];
