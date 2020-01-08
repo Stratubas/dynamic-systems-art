@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { DynamicSystem } from 'src/classes/dynamic-system';
 import { SimulationInfo } from 'src/app/models/simulation-info';
 import { DynamicBody } from 'src/classes/dynamic-body';
@@ -26,7 +26,7 @@ const BATCH_SIZE = 99999 * WIDTH / PIXEL_SIZE; // TODO: fix batching
   templateUrl: './binary-star.component.html',
   styleUrls: ['./binary-star.component.scss']
 })
-export class BinaryStarComponent implements OnInit {
+export class BinaryStarComponent implements OnInit, OnDestroy {
 
   canvasWidth = WIDTH;
   canvasHeight = HEIGHT;
@@ -50,6 +50,7 @@ export class BinaryStarComponent implements OnInit {
   }
 
   ngOnInit() {
+    console.log('Binary star component is being initialized.');
     this.previewCanvas = this.previewCanvasRef.nativeElement;
     this.wallpaperCanvas = this.wallpaperCanvasRef.nativeElement;
     this.previewContext = this.previewCanvas.getContext('2d');
@@ -58,7 +59,7 @@ export class BinaryStarComponent implements OnInit {
   }
 
   ngOnDestroy() {
-    console.log('Klein-Gordon chain component is being destroyed.');
+    console.log('Binary star component is being destroyed.');
     this.system.shutdown();
     this.isDestroyed = true;
   }
