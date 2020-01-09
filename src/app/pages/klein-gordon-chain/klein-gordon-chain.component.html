@@ -14,11 +14,13 @@
     <div style="flex-basis: 0; flex-grow: 1;">
         <div>Energy ratio (11 central / all oscillators) vs time:</div>
         <canvas #energyRatioCanvas width="{{ totalFrames }}" height="400"
-            style="display:block; border: 2px solid black; width: 100%; height: 200px;"></canvas>
+            style="display:block; border: 2px solid black; width: 100%; height: 200px;"
+            (click)="openZoomPrompt($event)"></canvas>
         <div>Energy of each oscillator vs time:</div>
         <canvas #arrayPlotCanvas width="{{ totalFrames }}" height="{{ oscillatorCount }}"
             [style.height.px]="arrayPlotHeight"
-            style="display:block; border: 2px solid black; width: 100%; image-rendering: pixelated;"></canvas>
+            style="display:block; border: 2px solid black; width: 100%; image-rendering: pixelated;"
+            (click)="openZoomPrompt($event)"></canvas>
     </div>
 </div>
 <div class="my">
@@ -45,6 +47,8 @@
     <button (click)="pauseSimulation()" [disabled]="nextFrameResolver">Pause</button>
     <button (click)="continueSimulation()" [disabled]="!nextFrameResolver">Continue</button>
     <button (click)="restartSimulation()">Restart</button>
+    <span class="mx"></span>
+    <button (click)="openZoomPrompt()">Zoom</button><span>(or just click on the plot)</span>
 </div>
 <div class="my">
     <button (click)="saveConfig()">Save this config</button>

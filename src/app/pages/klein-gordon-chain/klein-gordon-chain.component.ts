@@ -76,6 +76,31 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.isDestroyed = true;
   }
 
+  openZoomPrompt(arrayPlotClickEvent?: MouseEvent) {
+    let from = 0;
+    if (arrayPlotClickEvent) {
+      const canvas = arrayPlotClickEvent.target as HTMLCanvasElement;
+      const left = canvas.getBoundingClientRect().left;
+      const xPixel = arrayPlotClickEvent.clientX - left;
+      from = Math.round(this.totalTimeUnits * (xPixel / canvas.offsetWidth));
+      console.log(arrayPlotClickEvent);
+    }
+    const defaultJson = `{"from": ${from}, "to": ${this.totalTimeUnits}, "totalSteps": ${this.totalFrames - 1}}`;
+    const boundsJson = prompt('Input the new bounds', defaultJson);
+    if (!boundsJson) {
+      return;
+    }
+    const bounds = JSON.parse(boundsJson);
+    const fromStep = Math.round(bounds.from / this.timeUnitsPerFrame);
+    const newTotalTimeUnits = bounds.to - this.timeUnitsPerFrame * fromStep;
+    const newTimeUnitsPerFrame = newTotalTimeUnits / bounds.totalSteps;
+    const initialConditions = this.xvHistory[fromStep];
+    this.totalTimeUnits = newTotalTimeUnits;
+    this.timeUnitsPerFrame = newTimeUnitsPerFrame;
+    this.updateTotalFrames();
+    this.restartSimulation(initialConditions);
+  }
+
   downloadResults(type: 'energy' | 'xv') {
     if (!type) {
       console.error(`What do you want, 'energy' or 'xv'?`);
@@ -145,6 +170,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.totalFrames = Math.round(this.totalTimeUnits / this.timeUnitsPerFrame) + 1;
     this.arrayPlotHeight = 200;
     this.arrayPlotLength = this.totalFrames;
+    console.log('totalFrames:', this.totalFrames);
   }
 
   initVariables() {
@@ -175,10 +201,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.initVariables();
   }
 
-  restartSimulation() {
+  restartSimulation(initialConditions?: number[]) {
     this.initCanvases();
     this.currentSimulationIndex++;
-    this.runSimulation();
+    this.runSimulation(initialConditions);
   }
 
   pauseSimulation() {
@@ -344,19 +370,29 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.arrayPlotContext.putImageData(myImageData, nextIndex, 0);
   }
 
-  async runSimulation() {
+  async runSimulation(initialConditions?: number[]) {
+    if (initialConditions && initialConditions.length !== 2 * this.oscillatorCount) {
+      alert(`Can't use these initial conditions - sizes don't match.`);
+      return;
+    }
     this.system.reset();
     this.currentTimeUnits = 0;
     this.arrayPlotArray = Array(this.arrayPlotLength);
     this.xvHistory = Array(this.arrayPlotLength);
     this.energyRatioArray = Array(this.arrayPlotLength);
     for (let oscillatorIndex = 0; oscillatorIndex < this.oscillatorCount; oscillatorIndex++) {
+      let y = 0;
+      let vy = 0;
+      if (oscillatorIndex === (this.oscillatorCount - 1) / 2) {
+        vy = this.initialMomentum;
+      }
+      if (initialConditions) {
+        y = initialConditions[oscillatorIndex];
+        vy = initialConditions[oscillatorIndex + this.oscillatorCount];
+      }
       const body: DynamicBody = {
-        x: oscillatorIndex + 0.5, // not realy necessary
-        y: 0,
-        vx: 0,
-        vy: oscillatorIndex === (this.oscillatorCount - 1) / 2 ? this.initialMomentum : 0,
-        mass: 0,
+        x: oscillatorIndex + 0.5, vx: 0, mass: 0, // irrelevant
+        y, vy, // much much relevant
       };
       this.system.addBody(body);
     }
