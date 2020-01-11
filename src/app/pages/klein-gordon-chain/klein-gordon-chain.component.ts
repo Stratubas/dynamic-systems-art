@@ -116,7 +116,11 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       }
     }
     const blob = new Blob([float64View]);
-    const exportName = `${type}-export-${Date.now()}.bin`;
+    const h = this.initialMomentum;
+    const dt = this.system.dt;
+    const DT = this.timeUnitsPerFrame;
+    const iters = this.totalFrames - 1;
+    const exportName = `JS_e_0.1_h_${h}_w_1_pert2_0_step_${dt}_DT_${DT}_iters_${iters}_out.bin`;
     // // For json:
     // const data = { data: this.arrayPlotArray };
     // const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
@@ -133,6 +137,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   async importResults(binaryXvDataFile?: File) {
     console.log(binaryXvDataFile);
     if (!binaryXvDataFile) { return; }
+    const nameParts = binaryXvDataFile.name.split('_');
+    this.initialMomentum = parseFloat(nameParts[4]);
+    this.timeUnitsPerFrame = parseFloat(nameParts[12]);
+    this.totalFrames = parseFloat(nameParts[14]) + 1;
     const buffer: ArrayBuffer = await new Promise((resolve: any) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -144,8 +152,12 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const oscillatorCount = this.oscillatorCount;
     const float64View = new Float64Array(buffer);
     const stepCount = (float64View.length / oscillatorCount) / 2;
-    this.totalTimeUnits = stepCount - 1;
-    this.timeUnitsPerFrame = 1;
+    if (stepCount !== this.totalFrames) {
+      console.error('Calculated stepCount is', stepCount, 'filename says', this.totalFrames);
+      alert('File must be corrupted.');
+      return;
+    }
+    this.totalTimeUnits = this.timeUnitsPerFrame * (stepCount - 1);
     this.updateTotalFrames();
     await new Promise(resolve => setTimeout(resolve));
     this.arrayPlotArray = new Array(stepCount);
