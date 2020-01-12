@@ -134,13 +134,15 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     window.URL.revokeObjectURL(url);
   }
 
-  async importResults(binaryXvDataFile?: File) {
+  async importResults(target?: HTMLInputElement) {
+    const binaryXvDataFile: File = target.files[0];
     console.log(binaryXvDataFile);
     if (!binaryXvDataFile) { return; }
     const nameParts = binaryXvDataFile.name.split('_');
     this.initialMomentum = parseFloat(nameParts[4]);
-    this.timeUnitsPerFrame = parseFloat(nameParts[12]);
-    this.totalFrames = parseFloat(nameParts[14]) + 1;
+    const stepsPerImport = 20; // use 1 to import each step data
+    this.timeUnitsPerFrame = parseFloat(nameParts[12]) * stepsPerImport;
+    this.totalFrames = parseFloat(nameParts[14]) / stepsPerImport + 1;
     const buffer: ArrayBuffer = await new Promise((resolve: any) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -151,7 +153,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     // TODO: save + load metedata in binary file or aux file
     const oscillatorCount = this.oscillatorCount;
     const float64View = new Float64Array(buffer);
-    const stepCount = (float64View.length / oscillatorCount) / 2;
+    const stepCount = ((float64View.length / oscillatorCount) / 2 - 1) / stepsPerImport + 1;
     if (stepCount !== this.totalFrames) {
       console.error('Calculated stepCount is', stepCount, 'filename says', this.totalFrames);
       alert('File must be corrupted.');
@@ -165,6 +167,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.energyRatioArray = new Array(stepCount);
     const startTime = performance.now();
     let bufferIndex = 0;
+    let printIndex = 0;
     for (let stepIndex = 0; stepIndex < stepCount; stepIndex++) {
       for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
         this.system.allBodies[bodyIndex].y = float64View[bufferIndex++];
@@ -172,10 +175,17 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
         this.system.allBodies[bodyIndex].vy = float64View[bufferIndex++];
       }
-      this.drawFrame(stepIndex, -1, true);
+      bufferIndex += (stepsPerImport - 1) * 2 * oscillatorCount;
+      this.drawFrame(stepIndex, -1, true, true);
+      printIndex++;
+      if (printIndex === 100) {
+        await new Promise(resolve => setTimeout(resolve));
+        printIndex = 0;
+      }
     }
     const loadingTime = performance.now() - startTime;
     console.log('Loaded binary data in', loadingTime, 'ms');
+    target.value = '';
   }
 
   updateTotalFrames() {
@@ -246,15 +256,17 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.arrayPlotContext.clearRect(0, 0, this.arrayPlotCanvas.width, this.arrayPlotCanvas.height);
   }
 
-  async drawFrame(currentTimeUnits: number, simulationIndex: any, force?: true) {
+  async drawFrame(currentTimeUnits: number, simulationIndex: any, force?: true, doBasicStuff?: true) {
     if (!force) {
       await this.readyToDraw;
       if (simulationIndex !== this.currentSimulationIndex) { return; }
       this.readyToDraw = new Promise(res => setTimeout(res, this.animationDelay));
       this.currentTimeUnits = currentTimeUnits;
     }
-    this.drawDisplacement();
-    const energies = this.drawEnergy();
+    if (!doBasicStuff) {
+      this.drawDisplacement();
+    }
+    const energies = this.drawEnergy(doBasicStuff);
     this.drawArrayPlotColumn(energies);
     this.drawEnergyRatio(energies);
   }
@@ -313,13 +325,16 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     });
   }
 
-  drawEnergy(): number[] {
+  drawEnergy(justGetEnergies?: true): number[] {
+    const energies = getEnergies(this.system.allBodies);
+    if (justGetEnergies) {
+      return energies;
+    }
     const canvas = this.energyCanvas;
     const itemHalfHeight = 0.5 * (canvas.clientWidth * canvas.height / (canvas.width * canvas.clientHeight));
     const itemHeight = Math.round(2 * itemHalfHeight);
     const context = this.energyContext;
     context.clearRect(0, 0, canvas.width, canvas.height);
-    const energies = getEnergies(this.system.allBodies);
     const maxEnergy = 0.5 * this.initialMomentum * this.initialMomentum;
     energies.forEach((energy, oscillatorIndex) => {
       const xPixel = oscillatorIndex;

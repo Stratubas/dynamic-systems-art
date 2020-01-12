@@ -28,7 +28,7 @@ export class DynamicSystem {
     private workerCollisionsResolvers: ((collisions: CollisionInfo[]) => void)[] = Array(WORKERS_COUNT);
     private workerWorks: Promise<any>[] = Array(WORKERS_COUNT).fill(null).map((_, i) => Promise.resolve(i));
 
-    constructor(private activeSystem: SystemType, public dt: number = 0.02) {
+    constructor(private activeSystem: SystemType, public dt: number = 0.1) {
         if (workersToMake) { this.workers = []; }
         for (let workerIndex = 0; workerIndex < workersToMake; workerIndex++) {
             const newWorker = new Worker('../workers/solver.worker', { type: 'module' });
