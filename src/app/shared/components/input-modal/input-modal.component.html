@@ -1,0 +1,14 @@
+<div class="modal-content">
+    <div class="modal-header">
+        <h4>Options</h4>
+    </div>
+    <div class="modal-body">
+        <ng-container *ngFor="let property of properties">
+            <div>{{property}}</div>
+            <input class="d-block" [(ngModel)]="result[property]">
+        </ng-container>
+    </div>
+    <div class="modal-footer">
+        <button (click)="submit()">Submit</button>
+    </div>
+</div>

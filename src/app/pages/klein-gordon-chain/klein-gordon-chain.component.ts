@@ -3,6 +3,8 @@ import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
 import { getXvData } from 'src/physics-helpers/klein-gordon-chain/get-xv-data';
+import { SimpleModalService } from 'ngx-simple-modal';
+import { InputModalComponent } from 'src/app/shared/components/input-modal/input-modal.component';
 
 const DEFAULT_TOTAL_TIME_UNITS = 5000;
 const DEFAULT_TIME_UNITS_PER_FRAME = 5;
@@ -60,7 +62,9 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   private currentSimulationIndex = 0;
   public fps = 0;
 
-  constructor() {
+  constructor(
+    private simpleModalService: SimpleModalService,
+  ) {
     this.system = new DynamicSystem('klein-gordon');
     this.initVariables();
   }
@@ -139,10 +143,18 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     console.log(binaryXvDataFile);
     if (!binaryXvDataFile) { return; }
     const nameParts = binaryXvDataFile.name.split('_');
+    const DT = parseFloat(nameParts[12]);
+    const iters = parseFloat(nameParts[14]);
+    let iterationsWindow = {
+      from: 0,
+      to: iters,
+      step: 1,
+    };
+    iterationsWindow = await this.simpleModalService.addModal(InputModalComponent, { data: iterationsWindow }).toPromise();
     this.initialMomentum = parseFloat(nameParts[4]);
-    const stepsPerImport = 20; // use 1 to import each step data
-    this.timeUnitsPerFrame = parseFloat(nameParts[12]) * stepsPerImport;
-    this.totalFrames = parseFloat(nameParts[14]) / stepsPerImport + 1;
+    const stepsPerImport = iterationsWindow.step; // use 1 to import each step data
+    this.timeUnitsPerFrame = DT * stepsPerImport;
+    this.totalFrames = Math.floor(1 + (iterationsWindow.to - iterationsWindow.from) / stepsPerImport);
     const buffer: ArrayBuffer = await new Promise((resolve: any) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -153,9 +165,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     // TODO: save + load metedata in binary file or aux file
     const oscillatorCount = this.oscillatorCount;
     const float64View = new Float64Array(buffer);
-    const stepCount = ((float64View.length / oscillatorCount) / 2 - 1) / stepsPerImport + 1;
-    if (stepCount !== this.totalFrames) {
-      console.error('Calculated stepCount is', stepCount, 'filename says', this.totalFrames);
+    const stepCount = this.totalFrames;
+    const totalFileFrames = (float64View.length / oscillatorCount) / 2;
+    if (totalFileFrames !== iters + 1) {
+      console.error('Calculated file frames are', totalFileFrames, 'but filename says', iters + 1);
       alert('File must be corrupted.');
       return;
     }
@@ -166,7 +179,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.xvHistory = new Array(stepCount);
     this.energyRatioArray = new Array(stepCount);
     const startTime = performance.now();
-    let bufferIndex = 0;
+    let bufferIndex = iterationsWindow.from * 2 * oscillatorCount;
     let printIndex = 0;
     for (let stepIndex = 0; stepIndex < stepCount; stepIndex++) {
       for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
