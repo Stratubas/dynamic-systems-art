@@ -65,7 +65,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   constructor(
     private simpleModalService: SimpleModalService,
   ) {
-    this.system = new DynamicSystem('klein-gordon');
+    this.system = new DynamicSystem('klein-gordon', 0.1); // (default: 0.1) This is a convenient spot to change it when needed.
     this.initVariables();
   }
 
@@ -124,7 +124,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const dt = this.system.dt;
     const DT = this.timeUnitsPerFrame;
     const iters = this.totalFrames - 1;
-    const exportName = `JS_e_0.1_h_${h}_w_1_pert2_0_step_${dt}_DT_${DT}_iters_${iters}_out.bin`;
+    const exportName = `JS-N-${this.oscillatorCount}_e_0.1_h_${h}_w_1_pert2_0_step_${dt}_DT_${DT}_iters_${iters}_${type}.bin`;
     // // For json:
     // const data = { data: this.arrayPlotArray };
     // const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
