@@ -46,7 +46,7 @@ export class BinaryStarComponent implements OnInit, OnDestroy {
 
   public system: DynamicSystem;
   constructor() {
-    this.system = new DynamicSystem('planetary');
+    this.system = new DynamicSystem('planetary', TIME_UNITS_PER_FRAME);
   }
 
   ngOnInit() {
