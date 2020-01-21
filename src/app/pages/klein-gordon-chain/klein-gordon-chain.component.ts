@@ -145,6 +145,15 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const nameParts = binaryXvDataFile.name.split('_');
     const DT = parseFloat(nameParts[12]);
     const iters = parseFloat(nameParts[14]);
+    const oscillatorCount = this.oscillatorCount;
+    const totalFileFrames = binaryXvDataFile.size / (2 * 8 * oscillatorCount);
+    if (totalFileFrames !== iters + 1) {
+      console.error('Calculated file frames are', totalFileFrames, 'but filename says', iters + 1);
+      const estimatedOscillatorCount = binaryXvDataFile.size / (2 * 8 * (iters + 1));
+      alert(`Wrong number of oscillators (they should be ${estimatedOscillatorCount}) or file is corrupted.`);
+      target.value = '';
+      return;
+    }
     let iterationsWindow = {
       from: 0,
       to: iters,
@@ -160,18 +169,26 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       reader.onload = () => {
         resolve(reader.result);
       };
-      reader.readAsArrayBuffer(binaryXvDataFile);
+      const blobbingStartTime = performance.now();
+      const stepByteSize = 2 * oscillatorCount * 8;
+      const subBlobs: Blob[] = [];
+      const fromByte = iterationsWindow.from * stepByteSize;
+      const toByte = (iterationsWindow.to + 1) * stepByteSize;
+      for (let stepByteStartIndex = fromByte; stepByteStartIndex < toByte; stepByteStartIndex += stepByteSize * stepsPerImport) {
+        const stepByteEndIndex = stepByteStartIndex + stepByteSize;
+        if (stepByteEndIndex > binaryXvDataFile.size) {
+          break;
+        }
+        const subBlob = binaryXvDataFile.slice(stepByteStartIndex, stepByteEndIndex);
+        subBlobs.push(subBlob);
+      }
+      const concatenatedBlob = new Blob(subBlobs);
+      console.log('Blobbing took', performance.now() - blobbingStartTime, 'ms');
+      reader.readAsArrayBuffer(concatenatedBlob);
     });
     // TODO: save + load metedata in binary file or aux file
-    const oscillatorCount = this.oscillatorCount;
     const float64View = new Float64Array(buffer);
     const stepCount = this.totalFrames;
-    const totalFileFrames = (float64View.length / oscillatorCount) / 2;
-    if (totalFileFrames !== iters + 1) {
-      console.error('Calculated file frames are', totalFileFrames, 'but filename says', iters + 1);
-      alert('File must be corrupted.');
-      return;
-    }
     this.totalTimeUnits = this.timeUnitsPerFrame * (stepCount - 1);
     this.updateTotalFrames();
     await new Promise(resolve => setTimeout(resolve));
@@ -179,7 +196,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.xvHistory = new Array(stepCount);
     this.energyRatioArray = new Array(stepCount);
     const startTime = performance.now();
-    let bufferIndex = iterationsWindow.from * 2 * oscillatorCount;
+    let bufferIndex = 0;
     let printIndex = 0;
     for (let stepIndex = 0; stepIndex < stepCount; stepIndex++) {
       for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
@@ -188,7 +205,6 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
         this.system.allBodies[bodyIndex].vy = float64View[bufferIndex++];
       }
-      bufferIndex += (stepsPerImport - 1) * 2 * oscillatorCount;
       this.drawFrame(stepIndex, -1, true, true);
       printIndex++;
       if (printIndex === 100) {
