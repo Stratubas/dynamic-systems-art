@@ -169,11 +169,12 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       reader.onload = () => {
         resolve(reader.result);
       };
-      const blobbingStartTime = performance.now();
       const stepByteSize = 2 * oscillatorCount * 8;
+      console.log('A step contains', stepByteSize, 'bytes.');
       const subBlobs: Blob[] = [];
       const fromByte = iterationsWindow.from * stepByteSize;
       const toByte = (iterationsWindow.to + 1) * stepByteSize;
+      const slicingStartTime = performance.now();
       for (let stepByteStartIndex = fromByte; stepByteStartIndex < toByte; stepByteStartIndex += stepByteSize * stepsPerImport) {
         const stepByteEndIndex = stepByteStartIndex + stepByteSize;
         if (stepByteEndIndex > binaryXvDataFile.size) {
@@ -182,8 +183,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
         const subBlob = binaryXvDataFile.slice(stepByteStartIndex, stepByteEndIndex);
         subBlobs.push(subBlob);
       }
+      console.log('Slicing took', performance.now() - slicingStartTime, 'ms');
+      const unslicingStartTime = performance.now();
       const concatenatedBlob = new Blob(subBlobs);
-      console.log('Blobbing took', performance.now() - blobbingStartTime, 'ms');
+      console.log('Unslicing took', performance.now() - unslicingStartTime, 'ms');
       reader.readAsArrayBuffer(concatenatedBlob);
     });
     // TODO: save + load metedata in binary file or aux file

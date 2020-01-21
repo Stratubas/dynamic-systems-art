@@ -9,6 +9,7 @@ import { SimpleModalComponent } from 'ngx-simple-modal';
 export class InputModalComponent extends SimpleModalComponent<{ data: any }, any> implements OnInit {
 
   properties = ['from', 'to', 'step'];
+  isNumber: { [property: string]: boolean } = {};
 
   data: any;
   constructor() {
@@ -17,6 +18,9 @@ export class InputModalComponent extends SimpleModalComponent<{ data: any }, any
 
   ngOnInit() {
     this.result = { ...this.data };
+    for (const property of this.properties) {
+      this.isNumber[property] = typeof this.result[property] === 'number';
+    }
   }
 
   submit() {
