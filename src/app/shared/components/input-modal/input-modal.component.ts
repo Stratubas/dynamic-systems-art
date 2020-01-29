@@ -1,20 +1,21 @@
-import { Component, OnInit } from '@angular/core';
-import { SimpleModalComponent } from 'ngx-simple-modal';
+import { Component, OnInit, Inject } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 @Component({
   selector: 'app-input-modal',
   templateUrl: './input-modal.component.html',
   styleUrls: ['./input-modal.component.scss']
 })
-export class InputModalComponent extends SimpleModalComponent<{ data: any }, any> implements OnInit {
+export class InputModalComponent implements OnInit {
 
   properties = ['from', 'to', 'step'];
   isNumber: { [property: string]: boolean } = {};
 
-  data: any;
-  constructor() {
-    super();
-  }
+  result: any;
+
+  constructor(
+    public dialogRef: MatDialogRef<InputModalComponent>,
+    @Inject(MAT_DIALOG_DATA) public data) { }
 
   ngOnInit() {
     this.result = { ...this.data };
@@ -24,7 +25,8 @@ export class InputModalComponent extends SimpleModalComponent<{ data: any }, any
   }
 
   submit() {
-    this.close();
+    console.log(this.result);
+    this.dialogRef.close(this.result);
   }
 
 }

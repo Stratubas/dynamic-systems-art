@@ -3,8 +3,8 @@ import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
 import { getXvData } from 'src/physics-helpers/klein-gordon-chain/get-xv-data';
-import { SimpleModalService } from 'ngx-simple-modal';
 import { InputModalComponent } from 'src/app/shared/components/input-modal/input-modal.component';
+import { MatDialog } from '@angular/material/dialog';
 
 const DEFAULT_TOTAL_TIME_UNITS = 5000;
 const DEFAULT_TIME_UNITS_PER_FRAME = 5;
@@ -63,7 +63,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   public fps = 0;
 
   constructor(
-    private simpleModalService: SimpleModalService,
+    public dialog: MatDialog,
   ) {
     this.system = new DynamicSystem('klein-gordon', 0.1); // (default: 0.1) This is a convenient spot to change it when needed.
     this.initVariables();
@@ -159,7 +159,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       to: iters,
       step: 1,
     };
-    iterationsWindow = await this.simpleModalService.addModal(InputModalComponent, { data: iterationsWindow }).toPromise();
+    iterationsWindow = await this.dialog.open(InputModalComponent, { data: iterationsWindow }).afterClosed().toPromise();
     this.initialMomentum = parseFloat(nameParts[4]);
     const stepsPerImport = iterationsWindow.step; // use 1 to import each step data
     this.timeUnitsPerFrame = DT * stepsPerImport;
@@ -371,6 +371,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     energies.forEach((energy, oscillatorIndex) => {
       const xPixel = oscillatorIndex;
       const yPixel = Math.round(canvas.height * (1 - Math.sqrt(energy / maxEnergy)) - itemHalfHeight);
+      // const yPixel = Math.round(canvas.height * (1 - 5 * energy / maxEnergy) - itemHalfHeight);
       context.fillRect(xPixel, yPixel, 1, itemHeight);
     });
     return energies;

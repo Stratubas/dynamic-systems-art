@@ -15,3 +15,8 @@ input {
 .default-width {
   width: unset;
 }
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
