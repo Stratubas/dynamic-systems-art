@@ -39,7 +39,7 @@
         (total frames: 1 + {{totalFrames - 1}} = {{totalFrames}})
     </div>
     <div class="my">
-        Color plot intensity: <input type="number" [(ngModel)]="arrayPlotScale">
+        Color plot intensity: <input type="number" [(ngModel)]="arrayPlotScale" (change)="updateColors()" step="0.1">
     </div>
     <div class="my">
         Animation frame-to-frame delay (ms): <input type="number" [(ngModel)]="animationDelay">

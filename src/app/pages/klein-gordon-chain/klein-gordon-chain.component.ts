@@ -377,7 +377,19 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     return energies;
   }
 
-  drawArrayPlotColumn(newPlotColumn: number[]) {
+  updateColors() {
+    console.log('Updating plot colors...');
+    const startTime = performance.now();
+    const oldArrayPlotArray = this.arrayPlotArray;
+    this.arrayPlotArray = this.arrayPlotArray.map(() => undefined);
+    const imageData = this.arrayPlotContext.createImageData(1, this.arrayPlotCanvas.height);
+    for (const column of oldArrayPlotArray) {
+      this.drawArrayPlotColumn(column, imageData);
+    }
+    console.log('Updating plot colors took', performance.now() - startTime, 'ms');
+  }
+
+  drawArrayPlotColumn(newPlotColumn: number[], imageData?: ImageData) {
     const nextIndex = this.arrayPlotArray.findIndex(subarray => !subarray);
     if (nextIndex === -1) { return; }
     this.xvHistory[nextIndex] = getXvData(this.system.allBodies);
@@ -386,7 +398,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     // const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
     const width = this.arrayPlotCanvas.width;
     const height = this.arrayPlotCanvas.height;
-    const myImageData = this.arrayPlotContext.createImageData(1, height);
+    const myImageData = imageData || this.arrayPlotContext.createImageData(1, height);
     const data = myImageData.data;
     interface RgbObject { r: number; g: number; b: number; }
     const maxValue = 0.5 * this.initialMomentum * this.initialMomentum;
