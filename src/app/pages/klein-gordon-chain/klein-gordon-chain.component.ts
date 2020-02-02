@@ -243,7 +243,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.totalTimeUnits = config.totalTimeUnits || DEFAULT_TOTAL_TIME_UNITS;
     this.timeUnitsPerFrame = config.timeUnitsPerFrame || DEFAULT_TIME_UNITS_PER_FRAME;
     this.arrayPlotScale = config.arrayPlotScale || DEFAULT_ARRAY_PLOT_SCALE;
-    this.animationDelay = config.animationDelay || DEFAULT_ANIMATION_DELAY; // TODO: typescript ?? operator
+    this.animationDelay = config.animationDelay === undefined ? DEFAULT_ANIMATION_DELAY : config.animationDelay;
     this.updateTotalFrames();
   }
 
