@@ -18,12 +18,12 @@
             <div>Energy ratio (11 central / all oscillators) vs time:</div>
             <canvas #energyRatioCanvas width="{{ totalFrames }}" height="400"
                 style="display:block; border: 2px solid black; width: 100%; height: 200px;"
-                (click)="openZoomPrompt($event)"></canvas>
+                (click)="openZoomPrompt($event)" (mousemove)="viewHistoryState($event)"></canvas>
             <div>Energy of each oscillator vs time:</div>
             <canvas #arrayPlotCanvas width="{{ totalFrames }}" height="{{ oscillatorCount }}"
                 [style.height.px]="arrayPlotHeight"
                 style="display:block; border: 2px solid black; width: 100%; image-rendering: pixelated;"
-                (click)="openZoomPrompt($event)"></canvas>
+                (click)="openZoomPrompt($event)" (mousemove)="viewHistoryState($event)"></canvas>
         </div>
     </div>
     <div class="my">

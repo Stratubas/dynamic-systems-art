@@ -84,10 +84,9 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     let from = 0;
     if (arrayPlotClickEvent) {
       const canvas = arrayPlotClickEvent.target as HTMLCanvasElement;
-      const left = canvas.getBoundingClientRect().left;
-      const xPixel = arrayPlotClickEvent.clientX - left;
-      from = Math.round(this.totalTimeUnits * (xPixel / canvas.offsetWidth));
-      console.log(arrayPlotClickEvent);
+      const xPixel = arrayPlotClickEvent.offsetX;
+      from = Math.floor(this.totalTimeUnits * xPixel / canvas.clientWidth);
+      console.log(arrayPlotClickEvent, from);
     }
     const defaultJson = `{"from": ${from}, "to": ${this.totalTimeUnits}, "totalSteps": ${this.totalFrames - 1}}`;
     const boundsJson = prompt('Input the new bounds', defaultJson);
@@ -339,14 +338,33 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     // context.fillRect(nextIndex - 2, yPixel - 2, 5, 5);
   }
 
-  drawDisplacement() {
+  viewHistoryState(arrayPlotMouseMoveEvent: MouseEvent) {
+    const canvas = arrayPlotMouseMoveEvent.target as HTMLCanvasElement;
+    const xPixel = arrayPlotMouseMoveEvent.offsetX;
+    const from = Math.floor(this.xvHistory.length * xPixel / canvas.clientWidth);
+    const historyEntry = this.xvHistory[from];
+    if (!historyEntry) {
+      return;
+    }
+    this.currentTimeUnits = from * this.timeUnitsPerFrame;
+    const displacements = historyEntry.slice(0, this.oscillatorCount);
+    const momentums = historyEntry.slice(this.oscillatorCount, 2 * this.oscillatorCount);
+    const historyBodies = momentums.map((momentum, bodyIndex) => {
+      const displacement = displacements[bodyIndex];
+      return { y: displacement, vy: momentum };
+    });
+    this.drawDisplacement(displacements);
+    this.drawEnergy(false, historyBodies);
+  }
+
+  drawDisplacement(historyDisplacements?: number[]) {
     const canvas = this.displacementCanvas;
     const canvasHeight = canvas.height;
     const itemHalfHeight = 0.5 * (canvas.clientWidth * canvas.height / (canvas.width * canvas.clientHeight));
     const itemHeight = Math.round(2 * itemHalfHeight);
     // console.log(canvas.clientWidth, canvas.width, canvas.clientHeight, canvas.height, itemHeight);
     this.displacementContext.clearRect(0, 0, canvas.width, canvasHeight);
-    const displacements = this.system.allBodies.map(body => body.y);
+    const displacements = historyDisplacements || this.system.allBodies.map(body => body.y);
     // console.log(JSON.parse(JSON.stringify(this.system.allBodies)));
     const p2 = this.initialMomentum * this.initialMomentum;
     const maxDisplacement = Math.sqrt(0.1 * (Math.sqrt(121 + 200 * p2) - 11)); // TODO: dynamic epsilon
@@ -357,8 +375,8 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     });
   }
 
-  drawEnergy(justGetEnergies?: true): number[] {
-    const energies = getEnergies(this.system.allBodies);
+  drawEnergy(justGetEnergies?: boolean, historyBodies?: DynamicBody[]): number[] {
+    const energies = getEnergies(historyBodies || this.system.allBodies);
     if (justGetEnergies) {
       return energies;
     }
