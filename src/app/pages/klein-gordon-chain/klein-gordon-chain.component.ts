@@ -480,7 +480,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       if (thisSimulationIndex !== this.currentSimulationIndex) { break; }
       await this.system.doTimeSteps(this.timeUnitsPerFrame);
       if (thisSimulationIndex !== this.currentSimulationIndex) { break; }
-      await this.drawFrame(++frameIndex * this.timeUnitsPerFrame, thisSimulationIndex);
+      await this.drawFrame(+(++frameIndex * this.timeUnitsPerFrame).toFixed(1), thisSimulationIndex);
       const ms = Math.round(-perfTime + (perfTime = performance.now()));
       frameTimes[frameIndex % frameTimesBufferSize] = ms;
       frameTimesSum += ms;
