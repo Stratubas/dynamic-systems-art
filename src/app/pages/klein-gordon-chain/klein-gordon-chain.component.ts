@@ -420,7 +420,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   drawArrayPlotColumn(newPlotColumn: number[], imageData?: ImageData) {
     const nextIndex = this.arrayPlotArray.findIndex(subarray => !subarray);
     if (nextIndex === -1) { return; }
-    this.xvHistory[nextIndex] = getXvData(this.system.allBodies);
+    this.xvHistory[nextIndex] = this.xvHistory[nextIndex] || getXvData(this.system.allBodies);
     this.arrayPlotArray[nextIndex] = newPlotColumn;
     const array = this.arrayPlotArray;
     // const scale = 1 / array.reduce((max, subarray) => Math.max(max, Math.max(...subarray)), 0);
