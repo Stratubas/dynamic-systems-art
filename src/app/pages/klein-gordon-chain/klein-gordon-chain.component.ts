@@ -3,7 +3,7 @@ import { DynamicSystem } from 'src/classes/dynamic-system';
 import { getEnergies } from 'src/physics-helpers/klein-gordon-chain/get-energies';
 import { DynamicBody } from 'src/classes/dynamic-body';
 import { getXvData } from 'src/physics-helpers/klein-gordon-chain/get-xv-data';
-import { InputModalComponent } from 'src/app/shared/components/input-modal/input-modal.component';
+import { InputModalComponent, InputModalData } from 'src/app/shared/components/input-modal/input-modal.component';
 import { MatDialog } from '@angular/material/dialog';
 
 const DEFAULT_TOTAL_TIME_UNITS = 5000;
@@ -80,7 +80,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     this.isDestroyed = true;
   }
 
-  openZoomPrompt(arrayPlotClickEvent?: MouseEvent) {
+  async openZoomPrompt(arrayPlotClickEvent?: MouseEvent) {
     let from = 0;
     if (arrayPlotClickEvent) {
       const canvas = arrayPlotClickEvent.target as HTMLCanvasElement;
@@ -88,12 +88,16 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       from = Math.floor(this.totalTimeUnits * xPixel / canvas.clientWidth);
       console.log(arrayPlotClickEvent, from);
     }
-    const defaultJson = `{"from": ${from}, "to": ${this.totalTimeUnits}, "totalSteps": ${this.totalFrames - 1}}`;
-    const boundsJson = prompt('Input the new bounds', defaultJson);
-    if (!boundsJson) {
+    let bounds = {
+      from: from,
+      to: this.totalTimeUnits,
+      totalSteps: this.totalFrames - 1,
+    };
+    const modalData: InputModalData = { parameters: bounds, title: 'Zoom...' };
+    bounds = await this.dialog.open(InputModalComponent, { data: modalData }).afterClosed().toPromise();
+    if (!bounds) {
       return;
     }
-    const bounds = JSON.parse(boundsJson);
     const fromStep = Math.round(bounds.from / this.timeUnitsPerFrame);
     const newTotalTimeUnits = bounds.to - this.timeUnitsPerFrame * fromStep;
     const newTimeUnitsPerFrame = newTotalTimeUnits / bounds.totalSteps;
@@ -156,7 +160,8 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       to: iters,
       step: 1,
     };
-    iterationsWindow = await this.dialog.open(InputModalComponent, { data: iterationsWindow }).afterClosed().toPromise();
+    const modalData: InputModalData = { parameters: iterationsWindow, title: 'Import which frames?' };
+    iterationsWindow = await this.dialog.open(InputModalComponent, { data: modalData }).afterClosed().toPromise();
     if (!iterationsWindow) {
       target.value = '';
       return; // aborted by user
