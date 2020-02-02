@@ -144,12 +144,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     const nameParts = binaryXvDataFile.name.split('_');
     const DT = parseFloat(nameParts[12]);
     const iters = parseFloat(nameParts[14]);
-    const oscillatorCount = this.oscillatorCount;
-    const totalFileFrames = binaryXvDataFile.size / (2 * 8 * oscillatorCount);
-    if (totalFileFrames !== iters + 1) {
-      console.error('Calculated file frames are', totalFileFrames, 'but filename says', iters + 1);
-      const estimatedOscillatorCount = binaryXvDataFile.size / (2 * 8 * (iters + 1));
-      alert(`Wrong number of oscillators (they should be ${estimatedOscillatorCount}) or file is corrupted.`);
+    const importedOscillatorCount = binaryXvDataFile.size / (2 * 8 * (iters + 1));
+    if (importedOscillatorCount !== Math.round(importedOscillatorCount)) {
+      console.error('importedOscillatorCount:', importedOscillatorCount);
+      alert(`File appears to be corrupted.`);
       target.value = '';
       return;
     }
@@ -159,8 +157,15 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       step: 1,
     };
     iterationsWindow = await this.dialog.open(InputModalComponent, { data: iterationsWindow }).afterClosed().toPromise();
+    if (!iterationsWindow) {
+      target.value = '';
+      return; // aborted by user
+    }
+    this.oscillatorCount = importedOscillatorCount;
+    this.totalFrames = 1; // doing a zero-step simulation...
+    await this.runSimulation(); // ...just to initialize the oscillators
     this.initialMomentum = parseFloat(nameParts[4]);
-    const stepsPerImport = iterationsWindow.step; // use 1 to import each step data
+    const stepsPerImport = iterationsWindow.step;
     this.timeUnitsPerFrame = DT * stepsPerImport;
     this.totalFrames = Math.floor(1 + (iterationsWindow.to - iterationsWindow.from) / stepsPerImport);
     const buffer: ArrayBuffer = await new Promise((resolve: any) => {
@@ -168,7 +173,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       reader.onload = () => {
         resolve(reader.result);
       };
-      const stepByteSize = 2 * oscillatorCount * 8;
+      const stepByteSize = 2 * this.oscillatorCount * 8;
       console.log('A step contains', stepByteSize, 'bytes.');
       const subBlobs: Blob[] = [];
       const fromByte = iterationsWindow.from * stepByteSize;
@@ -201,10 +206,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     let bufferIndex = 0;
     let printIndex = 0;
     for (let stepIndex = 0; stepIndex < stepCount; stepIndex++) {
-      for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
+      for (let bodyIndex = 0; bodyIndex < this.oscillatorCount; bodyIndex++) {
         this.system.allBodies[bodyIndex].y = float64View[bufferIndex++];
       }
-      for (let bodyIndex = 0; bodyIndex < oscillatorCount; bodyIndex++) {
+      for (let bodyIndex = 0; bodyIndex < this.oscillatorCount; bodyIndex++) {
         this.system.allBodies[bodyIndex].vy = float64View[bufferIndex++];
       }
       this.drawFrame(stepIndex, -1, true, true);
