@@ -364,7 +364,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       return { y: displacement, vy: momentum };
     });
     this.drawDisplacement(displacements);
-    this.drawEnergy(false, historyBodies);
+    const energies = this.drawEnergy(false, historyBodies);
+    const energy = energies.reduce((total, extra) => total + extra);
+    const log = Math.log10(Math.abs(2 * energy / (this.initialMomentum ** 2) - 1));
+    console.log('log10(|E-E0|/E0) =', log);
   }
 
   drawDisplacement(historyDisplacements?: number[]) {
