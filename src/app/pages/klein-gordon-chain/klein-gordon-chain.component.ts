@@ -304,10 +304,10 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       this.readyToDraw = new Promise(res => setTimeout(res, this.animationDelay));
       this.currentTimeUnits = currentTimeUnits;
     }
-    if (!doBasicStuff) {
-      this.drawDisplacement();
-    }
     const energies = this.drawEnergy(doBasicStuff);
+    if (!doBasicStuff) {
+      this.drawDisplacement(undefined, energies);
+    }
     this.drawArrayPlotColumn(energies);
     this.drawEnergyRatio(energies);
   }
@@ -363,14 +363,14 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       const displacement = displacements[bodyIndex];
       return { y: displacement, vy: momentum };
     });
-    this.drawDisplacement(displacements);
     const energies = this.drawEnergy(false, historyBodies);
+    this.drawDisplacement(displacements, energies);
     const energy = energies.reduce((total, extra) => total + extra);
     const log = Math.log10(Math.abs(2 * energy / (this.initialMomentum ** 2) - 1));
     console.log('log10(|E-E0|/E0) =', log);
   }
 
-  drawDisplacement(historyDisplacements?: number[]) {
+  drawDisplacement(historyDisplacements: number[] | undefined, energies: number[]) {
     const canvas = this.displacementCanvas;
     const canvasHeight = canvas.height;
     const itemHalfHeight = 0.5 * (canvas.clientWidth * canvas.height / (canvas.width * canvas.clientHeight));
@@ -384,6 +384,8 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     displacements.forEach((displacement, oscillatorIndex) => {
       const xPixel = oscillatorIndex;
       const yPixel = Math.round(canvasHeight * 0.5 * (1 - displacement / maxDisplacement) - itemHalfHeight);
+      const normalEnergy = Math.min(1, 16 * Math.abs(energies[oscillatorIndex] / p2));
+      this.displacementContext.fillStyle = `#${Math.floor(255 * normalEnergy).toString(16).padStart(2, '0')}0000`;
       this.displacementContext.fillRect(xPixel, yPixel, 1, itemHeight);
     });
   }
