@@ -31,7 +31,7 @@
     </div>
     <div class="my">
         Initial central momentum: <input type="number" [(ngModel)]="initialMomentum">
-        (energy: {{initialMomentum * initialMomentum / 2}})
+        (energy: {{initialMomentum * initialMomentum / 2}}) log10(|ΔE|/E) = {{energyError}}
     </div>
     <div class="my">
         Time units - Total: <input type="number" [(ngModel)]="totalTimeUnits" (input)="updateTotalFrames()">

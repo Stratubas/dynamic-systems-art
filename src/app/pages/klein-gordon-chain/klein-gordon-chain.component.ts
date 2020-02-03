@@ -37,6 +37,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
   private energyRatioArray: number[];
 
   public currentTimeUnits = 0;
+  public energyError: number;
 
   private system: DynamicSystem;
 
@@ -89,7 +90,7 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       console.log(arrayPlotClickEvent, from);
     }
     let bounds = {
-      from: from,
+      from,
       to: this.totalTimeUnits,
       totalSteps: this.totalFrames - 1,
     };
@@ -365,9 +366,6 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
     });
     const energies = this.drawEnergy(false, historyBodies);
     this.drawDisplacement(displacements, energies);
-    const energy = energies.reduce((total, extra) => total + extra);
-    const log = Math.log10(Math.abs(2 * energy / (this.initialMomentum ** 2) - 1));
-    console.log('log10(|E-E0|/E0) =', log);
   }
 
   drawDisplacement(historyDisplacements: number[] | undefined, energies: number[]) {
@@ -407,6 +405,8 @@ export class KleinGordonChainComponent implements OnInit, OnDestroy {
       // const yPixel = Math.round(canvas.height * (1 - 5 * energy / maxEnergy) - itemHalfHeight);
       context.fillRect(xPixel, yPixel, 1, itemHeight);
     });
+    const currentEnergy = energies.reduce((total, extra) => total + extra);
+    this.energyError = Math.log10(Math.abs(2 * currentEnergy / (this.initialMomentum ** 2) - 1));
     return energies;
   }
 
