@@ -30,7 +30,7 @@
         Number of oscillators: <input type="number" [(ngModel)]="oscillatorCount" (input)="updateTotalFrames()">
     </div>
     <div class="my">
-        Initial central momentum: <input type="number" [(ngModel)]="initialMomentum">
+        Initial central velocity: <input type="number" [(ngModel)]="initialMomentum">
         (energy: {{initialMomentum * initialMomentum / 2}}) log10(|ΔE|/E) = {{energyError}}
     </div>
     <div class="my">
