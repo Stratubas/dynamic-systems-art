@@ -4,12 +4,14 @@ import { KleinGordonChainComponent } from './pages/klein-gordon-chain/klein-gord
 import { WelcomeComponent } from './pages/welcome/welcome.component';
 import { NotFoundComponent } from './pages/not-found/not-found.component';
 import { BinaryStarComponent } from './pages/binary-star/binary-star.component';
+import { JuliaSetComponent } from './pages/julia-set/julia-set.component';
 
 
 const routes: Routes = [
   { path: '', component: WelcomeComponent },
   { path: 'binary-star', component: BinaryStarComponent },
   { path: 'klein-gordon-chain', component: KleinGordonChainComponent },
+  { path: 'julia-set', component: JuliaSetComponent },
   { path: '**', component: NotFoundComponent },
 ];
 

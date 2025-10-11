@@ -8,6 +8,7 @@ import { KleinGordonChainComponent } from './pages/klein-gordon-chain/klein-gord
 import { WelcomeComponent } from './pages/welcome/welcome.component';
 import { NotFoundComponent } from './pages/not-found/not-found.component';
 import { BinaryStarComponent } from './pages/binary-star/binary-star.component';
+import { JuliaSetComponent } from './pages/julia-set/julia-set.component';
 import { InputModalComponent } from './shared/components/input-modal/input-modal.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -20,6 +21,7 @@ import { MatDialogModule } from '@angular/material/dialog';
     WelcomeComponent,
     NotFoundComponent,
     BinaryStarComponent,
+    JuliaSetComponent,
     InputModalComponent,
   ],
   imports: [
