@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { getInterpolatedColor } from 'src/app/shared/helpers/colors';
+import { ColorAnchors, getInterpolatedColor } from 'src/app/shared/helpers/colors';
 import { add, multiply } from 'src/app/shared/helpers/complex';
 import { Point, cartesianToPolar, getRadius2, polarToCartesian } from 'src/app/shared/helpers/coordinates';
 
@@ -29,17 +29,24 @@ const f = (z: Point) => {
   return add(z2, c);
 };
 const SMOOTHING_STEPS = 3;
-const PLOT_SCALE = 2 / 2;
+const PLOT_SCALE = 2 / 8;
 const xStep = PLOT_SCALE / 375;
 const yStep = PLOT_SCALE / 375;
 const xStepCount = Math.round((topRight.x - bottomLeft.x) / xStep);
 const yStepCount = Math.round((topRight.y - bottomLeft.y) / yStep);
-const bgColorScale = 1 / 8;
-const bgColor = getInterpolatedColor(bgColorScale);
+
+const colorAnchors: ColorAnchors = [
+  [255 + 140, 255 + 140, 255 + 140],
+  [255, 40, 0],
+  [140, 0, 0],
+  [20, 0, 0],
+];
+const bgColorScale = 1 / 10;
+const bgColor = getInterpolatedColor(bgColorScale, colorAnchors);
 
 const WIDTH = 1200 / PLOT_SCALE;
 const HEIGHT = Math.round(WIDTH * yStepCount / xStepCount);
-const maxIterations = 400;
+const maxIterations = 1400;
 const pointWidth = WIDTH / xStepCount;
 const pointHeight = HEIGHT / yStepCount;
 console.log({ WIDTH, HEIGHT, xStepCount, yStepCount, bottomLeft, topRight, xStep, yStep, pointWidth, pointHeight });
@@ -118,11 +125,12 @@ export class JuliaSetComponent implements OnInit {
     // const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(intensity, 0) + '%)';
     // const style = 'hsl(' + hue + ',100%,' + light + '%)';
     // const style = getColor((iterations + 5) ** (1 / 16) - 1.2);
-    const intensity = scale ** 0.4;
+    const intensity = Math.log(1 + 5 * scale);// ** 0.5; // kalo
+    // const intensity = scale ** 0.5;
     if (intensity <= bgColorScale) {
       return;
     }
-    const style = getInterpolatedColor(intensity);
+    const style = getInterpolatedColor(intensity, colorAnchors);
     this.wallpaperContext.fillStyle = style;
     const xScaled = Math.round(WIDTH * (x - xStep / 2 - bottomLeft.x) / (topRight.x - bottomLeft.x));
     const yScaled = Math.round(HEIGHT * (y - yStep / 2 - bottomLeft.y) / (topRight.y - bottomLeft.y));

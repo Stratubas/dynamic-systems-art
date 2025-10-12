@@ -1,8 +1,10 @@
+export type ColorAnchors = [number, number, number][];
+
 function getHex([r, g, b]: [number, number, number]) {
   return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0").toUpperCase();
 }
 
-const defaultAnchors: [number, number, number][] = [
+const defaultAnchors: ColorAnchors = [
   [0, 0, 0],
   [95, 35, 129],
   [201, 66, 69],
@@ -28,9 +30,9 @@ export function getInterpolatedColor(t: number, anchors = defaultAnchors) {
 
   const c0 = anchors[i];
   const c1 = anchors[i + 1];
-  const r = Math.round(c0[0] + (c1[0] - c0[0]) * local);
-  const g = Math.round(c0[1] + (c1[1] - c0[1]) * local);
-  const b = Math.round(c0[2] + (c1[2] - c0[2]) * local);
+  const r = Math.min(Math.max(Math.round(c0[0] + (c1[0] - c0[0]) * local), 0), 255);
+  const g = Math.min(Math.max(Math.round(c0[1] + (c1[1] - c0[1]) * local), 0), 255);
+  const b = Math.min(Math.max(Math.round(c0[2] + (c1[2] - c0[2]) * local), 0), 255);
   return getHex([r, g, b]);
 
 }
