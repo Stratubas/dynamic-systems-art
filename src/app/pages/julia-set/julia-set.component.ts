@@ -29,17 +29,17 @@ const f = (z: Point) => {
   return add(z2, c);
 };
 const SMOOTHING_STEPS = 3;
-const PLOT_SCALE = 2 / 8;
+const PLOT_SCALE = 2 / 2;
 const xStep = PLOT_SCALE / 375;
 const yStep = PLOT_SCALE / 375;
 const xStepCount = Math.round((topRight.x - bottomLeft.x) / xStep);
 const yStepCount = Math.round((topRight.y - bottomLeft.y) / yStep);
 
 const colorAnchors: ColorAnchors = [
-  [255 + 140, 255 + 140, 255 + 140],
-  [255, 40, 0],
-  [140, 0, 0],
-  [20, 0, 0],
+  [255, 80, 0, -200],
+  [255, 40, 0, 255],
+  [140, 0, 0, 255],
+  [20, 0, 0, 255],
 ];
 const bgColorScale = 1 / 10;
 const bgColor = getInterpolatedColor(bgColorScale, colorAnchors);
