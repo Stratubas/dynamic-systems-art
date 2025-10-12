@@ -64,7 +64,7 @@ function getColor(t: number) {
 
   if (i >= n) {
     return getHex(anchors[n]);
-  };
+  }
   if (i < 0) {
     return getHex(anchors[0]);
   }
@@ -95,13 +95,21 @@ const ROTATION = 0; // Math.PI / 4;
 const offset = 0; // 0.0001717171717;
 // const bottomLeft: Point = { x: -1.2 + offset, y: -1.4 + offset };
 // const topRight: Point = { x: 1.2 + offset, y: 1.4 + offset };
-const bottomLeft: Point = { x: -2, y: -2 };
-const topRight: Point = { x: 2, y: 2 };
-const PLOT_SCALE = 2 / 1;
-const xStep = PLOT_SCALE / 300;
-const yStep = PLOT_SCALE / 300;
+const bottomLeft: Point = { x: -1.6, y: -1 };
+const topRight: Point = { x: 1.6, y: 1 };
+const f = (z: Point) => {
+  const z2 = multiply(z, z);
+  const c: Point = { x: -0.7, y: -0.3 };
+  return add(z2, c);
+};
+const SMOOTHING_STEPS = 3;
+const PLOT_SCALE = 2 / 2;
+const xStep = PLOT_SCALE / 375;
+const yStep = PLOT_SCALE / 375;
 const xStepCount = Math.round((topRight.x - bottomLeft.x) / xStep);
 const yStepCount = Math.round((topRight.y - bottomLeft.y) / yStep);
+const bgColorScale = 1 / 8;
+const bgColor = getColor(bgColorScale);
 
 const WIDTH = 1200 / PLOT_SCALE;
 const HEIGHT = Math.round(WIDTH * yStepCount / xStepCount);
@@ -125,6 +133,8 @@ export class JuliaSetComponent implements OnInit {
   canvasWidth = WIDTH;
   canvasHeight = HEIGHT;
 
+  bgColor = bgColor;
+
   results?: { plotPoint: Point, iterations: number }[];
 
   constructor() { }
@@ -135,6 +145,7 @@ export class JuliaSetComponent implements OnInit {
   }
 
   go() {
+    const startTime = performance.now();
     const items: { plotPoint: Point, calcPoint: Point }[] = [];
     for (let xi = 0; xi < xStepCount; xi++) {
       const x = bottomLeft.x + xi * xStep + xStep / 2;
@@ -159,12 +170,14 @@ export class JuliaSetComponent implements OnInit {
       min = Math.min(min, r.iterations);
       max = Math.max(max, r.iterations);
     });
-    console.log('Calculated', this.results.length, 'points', { min, max });
+    const calcTime = performance.now() - startTime;
+    console.log('Calculated', this.results.length, 'points', { min, max, calcTime });
     // console.log(results);
     this.results.forEach(result => {
       const { x, y } = result.plotPoint;
       this.paintPixel(x, y, result.iterations, min, max);
     });
+    console.log('Drawing took', performance.now() - startTime - calcTime, 'ms');
   }
 
   paintPixel(x: number, y: number, iterations: number, min = 0, max = maxIterations) {
@@ -179,7 +192,11 @@ export class JuliaSetComponent implements OnInit {
     // const style = 'hsl(' + hue + ',100%,' + 50 * Math.max(intensity, 0) + '%)';
     // const style = 'hsl(' + hue + ',100%,' + light + '%)';
     // const style = getColor((iterations + 5) ** (1 / 16) - 1.2);
-    const style = getColor(scale ** 0.4);
+    const intensity = scale ** 0.4;
+    if (intensity <= bgColorScale) {
+      return;
+    }
+    const style = getColor(intensity);
     this.wallpaperContext.fillStyle = style;
     const xScaled = Math.round(WIDTH * (x - xStep / 2 - bottomLeft.x) / (topRight.x - bottomLeft.x));
     const yScaled = Math.round(HEIGHT * (y - yStep / 2 - bottomLeft.y) / (topRight.y - bottomLeft.y));
@@ -194,21 +211,21 @@ export class JuliaSetComponent implements OnInit {
     while (i < maxIterations) {
       const distance2 = getRadius2(p);
       if (distance2 >= escapeRadius2) {
-        // const z = distance2 ** 0.5 / escapeRadius2 ** 0.5;
-        // i += (escapeRadius2 / distance2) ** 0.1;
-        // i -= 1 - 1 / z ** 14;
+        if (SMOOTHING_STEPS) {
+          // https://linas.org/art-gallery/escape/escape.html
+          for (let s = 0; s < SMOOTHING_STEPS; s++) {
+            p = f(p);
+            i++;
+          }
+          i = i + 1 - Math.LOG2E * Math.log(0.5 * Math.log(getRadius2(p)));
+        }
         break;
       }
-      p = this.f(p);
+      p = f(p);
       i++;
     }
     return i;
   }
 
-  f(z: Point) {
-    const z2 = multiply(z, z);
-    const c: Point = { x: -0.7, y: -0.3 };
-    return add(z2, c);
-  }
 
 }
