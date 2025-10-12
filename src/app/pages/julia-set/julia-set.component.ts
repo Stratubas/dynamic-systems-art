@@ -36,7 +36,7 @@ const xStepCount = Math.round((topRight.x - bottomLeft.x) / xStep);
 const yStepCount = Math.round((topRight.y - bottomLeft.y) / yStep);
 
 const colorAnchors: ColorAnchors = [
-  [255, 80, 0, -200],
+  [255, 255 * 2, 0, -255],
   [255, 40, 0, 255],
   [140, 0, 0, 255],
   [20, 0, 0, 255],
