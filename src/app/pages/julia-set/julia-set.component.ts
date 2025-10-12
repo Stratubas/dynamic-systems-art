@@ -1,82 +1,8 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { getInterpolatedColor } from 'src/app/shared/helpers/colors';
+import { add, multiply } from 'src/app/shared/helpers/complex';
+import { Point, cartesianToPolar, getRadius2, polarToCartesian } from 'src/app/shared/helpers/coordinates';
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface PolarPoint {
-  r: number;
-  t: number;
-}
-
-function multiply(p1: Point, p2: Point): Point {
-  return {
-    x: p1.x * p2.x - p1.y * p2.y,
-    y: p1.x * p2.y + p1.y * p2.x,
-  };
-}
-
-function add(p1: Point, p2: Point): Point {
-  return {
-    x: p1.x + p2.x,
-    y: p1.y + p2.y,
-  };
-}
-
-function getRadius2(p: Point): number {
-  return p.x * p.x + p.y * p.y;
-}
-
-function cartesianToPolar(p: Point): PolarPoint {
-  const r = Math.sqrt(p.x * p.x + p.y * p.y);
-  const t = Math.atan2(p.y, p.x);
-  return { r, t };
-}
-
-function polarToCartesian(polar: PolarPoint): Point {
-  return {
-    x: polar.r * Math.cos(polar.t),
-    y: polar.r * Math.sin(polar.t),
-  };
-}
-
-function getHex([r, g, b]: [number, number, number]) {
-  return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0").toUpperCase();
-}
-
-function getColor(t: number) {
-
-  const anchors: [number, number, number][] = [
-    [0, 0, 0],
-    [95, 35, 129],
-    [201, 66, 69],
-    [250, 115, 13],
-    [255, 174, 33],
-    [255, 225, 125],
-    [255, 255, 255],
-  ];
-
-  const n = anchors.length - 1;
-  const scaled = t * n;
-  const i = Math.floor(scaled);
-  const local = scaled - i;
-
-  if (i >= n) {
-    return getHex(anchors[n]);
-  }
-  if (i < 0) {
-    return getHex(anchors[0]);
-  }
-
-  const c0 = anchors[i];
-  const c1 = anchors[i + 1];
-  const r = Math.round(c0[0] + (c1[0] - c0[0]) * local);
-  const g = Math.round(c0[1] + (c1[1] - c0[1]) * local);
-  const b = Math.round(c0[2] + (c1[2] - c0[2]) * local);
-  return getHex([r, g, b]);
-
-}
 
 const ROTATION = 0; // Math.PI / 4;
 // const calcLimits = {
@@ -92,7 +18,7 @@ const ROTATION = 0; // Math.PI / 4;
 //   topRight: polarToCartesian({ r: polarLimits.topRight.r, t: polarLimits.topRight.t - ROTATION }),
 // };
 
-const offset = 0; // 0.0001717171717;
+// const offset = 0; // 0.0001717171717;
 // const bottomLeft: Point = { x: -1.2 + offset, y: -1.4 + offset };
 // const topRight: Point = { x: 1.2 + offset, y: 1.4 + offset };
 const bottomLeft: Point = { x: -1.6, y: -1 };
@@ -109,7 +35,7 @@ const yStep = PLOT_SCALE / 375;
 const xStepCount = Math.round((topRight.x - bottomLeft.x) / xStep);
 const yStepCount = Math.round((topRight.y - bottomLeft.y) / yStep);
 const bgColorScale = 1 / 8;
-const bgColor = getColor(bgColorScale);
+const bgColor = getInterpolatedColor(bgColorScale);
 
 const WIDTH = 1200 / PLOT_SCALE;
 const HEIGHT = Math.round(WIDTH * yStepCount / xStepCount);
@@ -196,7 +122,7 @@ export class JuliaSetComponent implements OnInit {
     if (intensity <= bgColorScale) {
       return;
     }
-    const style = getColor(intensity);
+    const style = getInterpolatedColor(intensity);
     this.wallpaperContext.fillStyle = style;
     const xScaled = Math.round(WIDTH * (x - xStep / 2 - bottomLeft.x) / (topRight.x - bottomLeft.x));
     const yScaled = Math.round(HEIGHT * (y - yStep / 2 - bottomLeft.y) / (topRight.y - bottomLeft.y));
@@ -226,6 +152,5 @@ export class JuliaSetComponent implements OnInit {
     }
     return i;
   }
-
 
 }
