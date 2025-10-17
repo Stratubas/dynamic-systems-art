@@ -6,18 +6,13 @@ import { environment } from 'src/environments/environment';
 
 
 const bottomLeft: Point = { x: -2, y: -2 };
-const topRight: Point = { x: 2, y: 2 };
+const topRight: Point = { x: 2, y: 2 }; // TODO: dynamic bounds & aspect ratio
 const defaultC: Point = { x: -0.7, y: -0.3 };
 const f = (z: Point, c: Point) => {
   const z2 = multiply(z, z);
   return add(z2, c);
 };
 const SMOOTHING_STEPS = 3;
-const PLOT_SCALE = 4 / 1;
-const xStep = PLOT_SCALE / 300;
-const yStep = PLOT_SCALE / 300;
-const xStepCount = Math.round((topRight.x - bottomLeft.x) / xStep);
-const yStepCount = Math.round((topRight.y - bottomLeft.y) / yStep);
 
 const colorAnchors: ColorAnchors = [
   [255, 255 * 2, 0, -255],
@@ -28,12 +23,6 @@ const colorAnchors: ColorAnchors = [
 const bgColorScale = 1 / 10;
 const bgColor = getHex(getInterpolatedRgba(bgColorScale, colorAnchors));
 
-const WIDTH = 1200 / PLOT_SCALE;
-const HEIGHT = Math.round(WIDTH * yStepCount / xStepCount);
-const pointWidth = WIDTH / xStepCount;
-const pointHeight = HEIGHT / yStepCount;
-console.log({ WIDTH, HEIGHT, xStepCount, yStepCount, bottomLeft, topRight, xStep, yStep, pointWidth, pointHeight });
-
 
 @Component({
   selector: 'app-julia-set',
@@ -42,17 +31,14 @@ console.log({ WIDTH, HEIGHT, xStepCount, yStepCount, bottomLeft, topRight, xStep
 })
 export class JuliaSetComponent implements OnInit {
 
-  @ViewChild('wallpaperCanvas', { static: true }) public wallpaperCanvasRef: ElementRef;
-  private wallpaperCanvas: HTMLCanvasElement;
-  private wallpaperContext: CanvasRenderingContext2D;
+  @ViewChild('previewCanvas', { static: true }) public previewCanvasRef: ElementRef;
+  private previewCanvas: HTMLCanvasElement;
+  private previewContext: CanvasRenderingContext2D;
 
-  canvasWidth = WIDTH;
-  canvasHeight = HEIGHT;
+  previewSize = 300;
 
   bgColor = bgColor;
   sliderColor = getHex(getInterpolatedRgba(0.4));
-
-  buffer = new Uint8ClampedArray(WIDTH * HEIGHT * 4);
 
   c = defaultC;
   maxIterations = 200;
@@ -60,15 +46,13 @@ export class JuliaSetComponent implements OnInit {
 
   pendingWork?: Promise<void>;
 
-  resultIterations?: number[];
-
   isDev = !environment.production;
 
   constructor() { }
 
   ngOnInit() {
-    this.wallpaperCanvas = this.wallpaperCanvasRef.nativeElement;
-    this.wallpaperContext = this.wallpaperCanvas.getContext('2d');
+    this.previewCanvas = this.previewCanvasRef.nativeElement;
+    this.previewContext = this.previewCanvas.getContext('2d');
     this.onParamChange();
   }
 
@@ -80,19 +64,20 @@ export class JuliaSetComponent implements OnInit {
       return; // Parameters have changed
     }
     this.pendingWork = new Promise(res => {
-      this.go({ ...this.c });
+      this.go();
       setTimeout(res);
     });
   }
 
-  go(c: Point) {
-    this.wallpaperContext.reset();
-    const startTime = performance.now();
+  getCalcPoints(size: number): Point[] {
     const calcPoints: Point[] = [];
-    for (let yi = 0; yi < yStepCount; yi++) {
-      const y = bottomLeft.y + yi * yStep + yStep / 2;
-      for (let xi = 0; xi < xStepCount; xi++) {
-        const x = bottomLeft.x + xi * xStep + xStep / 2;
+    const dx = topRight.x - bottomLeft.x;
+    const dy = topRight.y - bottomLeft.y;
+    const [width, height] = [size, size];
+    for (let yi = 0; yi < height; yi++) {
+      const y = bottomLeft.y + dy * (yi + 0.5) / height;
+      for (let xi = 0; xi < width; xi++) {
+        const x = bottomLeft.x + dx * (xi + 0.5) / width;
         const point = { x, y };
         if (!this.rotation) {
           calcPoints.push(point);
@@ -104,26 +89,60 @@ export class JuliaSetComponent implements OnInit {
         calcPoints.push(calcPoint);
       }
     }
+    return calcPoints;
+  }
 
-    this.resultIterations = calcPoints.map(point => this.getPointIterations(point, c));
+  getResults(calcPoints: Point[]): { min: number, max: number, values: number[] } {
+    const values = calcPoints.map(point => this.getPointIterations(point, this.c));
     let min = this.maxIterations;
     let max = 0;
-    this.resultIterations.forEach(r => {
+    values.forEach(r => {
       min = Math.min(min, r);
       max = Math.max(max, r);
     });
+    if (Number.isNaN(min)) {
+      throw values;
+    }
+    return { min, max, values };
+  }
+
+  getImageData(results: ReturnType<JuliaSetComponent['getResults']>): ImageData {
+    const { min, max, values } = results;
+    const maxIntensity = this.getPixelIntensity(max, min, max);
+    const buffer = new Uint8ClampedArray(values.length * 4);
+    values.forEach((iterations, pointIndex) => {
+      try {
+        const intensity = this.getPixelIntensity(iterations, min, max) / maxIntensity;
+        const rgba = getInterpolatedRgba(intensity, colorAnchors);
+        buffer.set(rgba, pointIndex * 4 /* r, g, b, a */);
+      } catch {
+        console.warn(iterations, maxIntensity);
+        buffer.set([0, 255, 0, 255], pointIndex * 4 /* r, g, b, a */);
+      }
+    });
+    const width = Math.sqrt(values.length);
+    // @ts-ignore:next-line
+    const imageData = new ImageData(buffer, width);
+    return imageData;
+  }
+
+  drawPreview(imageData: ImageData) {
+    // @ts-ignore:next-line
+    this.previewContext.reset();
+    this.previewContext.putImageData(imageData, 0, 0);
+  }
+
+  go() {
+    const startTime = performance.now();
+    const calcPoints = this.getCalcPoints(this.previewSize);
+    const results = this.getResults(calcPoints);
     const calcTime = performance.now() - startTime;
     if (this.isDev) {
+      const { min, max } = results;
       console.log('Calculated', calcPoints.length, 'points', { min, max, calcTime });
     }
-    const maxIntensity = this.getPixelIntensity(max, min, max);
-    this.resultIterations.forEach((iterations, pointIndex) => {
-      const intensity = this.getPixelIntensity(iterations, min, max) / maxIntensity;
-      const rgba = getInterpolatedRgba(intensity, colorAnchors);
-      this.buffer.set(rgba, pointIndex * 4 /* r, g, b, a */);
-    });
-    const imageData = new ImageData(this.buffer, WIDTH);
-    this.wallpaperContext.putImageData(imageData, 0, 0);
+    const imageData = this.getImageData(results);
+    this.drawPreview(imageData);
     if (this.isDev) {
       console.log('Drawing took', performance.now() - startTime - calcTime, 'ms');
     }
@@ -144,7 +163,7 @@ export class JuliaSetComponent implements OnInit {
   getPointIterations(point: Point, c: Point) {
     let p = { ...point };
     let i = 0;
-    const escapeRadius2 = 4;
+    const escapeRadius2 = 5;
     while (i < this.maxIterations) {
       const distance2 = getRadius2(p);
       if (distance2 >= escapeRadius2) {
@@ -162,6 +181,31 @@ export class JuliaSetComponent implements OnInit {
       i++;
     }
     return i;
+  }
+
+  async export() {
+    const sizeString = prompt('What size? (in pixels) (big values take a while)', '1080');
+    if (!sizeString) {
+      return;
+    }
+    const size = parseInt(sizeString);
+    const calcPoints = this.getCalcPoints(size);
+    const results = this.getResults(calcPoints);
+    const imageData = this.getImageData(results);
+
+    // @ts-ignore:next-line
+    const canvas = new OffscreenCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+    ctx.putImageData(imageData, 0, 0);
+
+    const anchor = document.createElement('a');
+    const now = new Date().toISOString();
+    anchor.download = `julia-set_${size}px_${now}.png`;
+    anchor.href = URL.createObjectURL(await canvas.convertToBlob());
+    anchor.dataset.downloadurl = ['image/png', anchor.download, anchor.href].join(':');
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
   }
 
 }

@@ -5,31 +5,38 @@
 <hr>
 
 <div style="padding: 10px;">
-  <div style="display: inline-block;">
-    <div style="display: flex;">
+  <div style="display: inline-block; width: 440px;">
+    <div style="display: flex; padding-bottom: 10px;">
       <span>Orientation:</span>
       <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="rotation" step="any" max="3.14"
         style="flex-grow: 1;" (input)="onParamChange()">
     </div>
-    Re:
-    <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="c.x" min="-2" max="2" step="0.01"
-      style="width: 400px;" (input)="onParamChange()">
-    <br>
-    Im:
-    <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="c.y" min="-2" max="2" step="0.01"
-      style="width: 400px;" (input)="onParamChange()">
-    <br>
-    <br>
-    f(z) = z<sup>2</sup> +
-    <input type="number" [(ngModel)]="c.x" step="any" style="width: 50px;" (input)="onParamChange()">
-    +
-    <input type="number" [(ngModel)]="c.y" step="any" style="width: 50px;" (input)="onParamChange()">
-    i
-    <span style="margin-left: 40px;"></span>
-    Max iterations:
-    <input type="number" [(ngModel)]="maxIterations" style="width: 50px;" (input)="onParamChange()">
-    <br>
+    <div style="display: flex;">
+      <span>Re:</span>
+      <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="c.x" min="-2" max="2" step="0.01"
+        style="flex-grow: 1;" (input)="onParamChange()">
+    </div>
+    <div style="display: flex;">
+      <span>Im:</span>
+      <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="c.y" min="-2" max="2" step="0.01"
+        style="flex-grow: 1;" (input)="onParamChange()">
+    </div>
+    <div style="display: flex; align-items: baseline; justify-content: space-between; padding-top: 10px">
+      <div style="align-items: center">
+        f(z) = z<sup>2</sup> +
+        <input type="number" [(ngModel)]="c.x" step="any" style="width: 50px;" (input)="onParamChange()">
+        +
+        <input type="number" [(ngModel)]="c.y" step="any" style="width: 50px;" (input)="onParamChange()">
+        i
+      </div>
+      <div style="margin-right: 4px">
+        Max iterations:
+        <input type="number" [(ngModel)]="maxIterations" style="width: 50px;" (input)="onParamChange()">
+      </div>
+    </div>
   </div>
 </div>
 
-<canvas #wallpaperCanvas width="{{canvasWidth}}" height="{{canvasHeight}}" [style.background-color]="bgColor"></canvas>
+<canvas #previewCanvas width="{{previewSize}}" height="{{previewSize}}" [style.background-color]="bgColor"></canvas>
+<br>
+<button style="margin: 10px; padding: 10px 20px 10px 20px;" (click)="export()">Download HD</button>
