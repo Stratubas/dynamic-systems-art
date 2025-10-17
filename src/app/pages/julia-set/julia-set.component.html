@@ -1,4 +1,35 @@
-<div style="min-height: 100vh" [style.background-color]="bgColor">
-  <button style="width: 220px; height: 120px;" (click)="go()" *ngIf="!results">Go</button>
-  <canvas #wallpaperCanvas width="{{canvasWidth}}" height="{{canvasHeight}}"></canvas>
+<div style="padding: 10px">
+  <a routerLink="/">Go back</a>
+  <h4 style="display: inline; padding-left: 20px;">Juila Set.</h4>
 </div>
+<hr>
+
+<div style="padding: 10px;">
+  <div style="display: inline-block;">
+    <div style="display: flex;">
+      <span>Orientation:</span>
+      <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="rotation" step="any" max="3.14"
+        style="flex-grow: 1;" (input)="onParamChange()">
+    </div>
+    Re:
+    <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="c.x" min="-2" max="2" step="0.01"
+      style="width: 400px;" (input)="onParamChange()">
+    <br>
+    Im:
+    <input type="range" [style.accent-color]="sliderColor" [(ngModel)]="c.y" min="-2" max="2" step="0.01"
+      style="width: 400px;" (input)="onParamChange()">
+    <br>
+    <br>
+    f(z) = z<sup>2</sup> +
+    <input type="number" [(ngModel)]="c.x" step="any" style="width: 50px;" (input)="onParamChange()">
+    +
+    <input type="number" [(ngModel)]="c.y" step="any" style="width: 50px;" (input)="onParamChange()">
+    i
+    <span style="margin-left: 40px;"></span>
+    Max iterations:
+    <input type="number" [(ngModel)]="maxIterations" style="width: 50px;" (input)="onParamChange()">
+    <br>
+  </div>
+</div>
+
+<canvas #wallpaperCanvas width="{{canvasWidth}}" height="{{canvasHeight}}" [style.background-color]="bgColor"></canvas>
